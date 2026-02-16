@@ -4,6 +4,7 @@ WORKDIR /app
 COPY client/package*.json ./
 RUN npm install --include=dev
 COPY client/ ./
+ENV VITE_API_URL=/api
 RUN npm run build
 
 FROM node:18-slim
