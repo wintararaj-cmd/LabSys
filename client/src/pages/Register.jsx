@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import './Login.css'; // Reuse login styles
 
 const Register = () => {
@@ -35,7 +35,7 @@ const Register = () => {
 
         try {
             setLoading(true);
-            await axios.post('http://localhost:5000/api/auth/register', formData);
+            await api.post('/auth/register', formData);
             alert('Registration successful! Please login.');
             navigate('/login');
         } catch (err) {

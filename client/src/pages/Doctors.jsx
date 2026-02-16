@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import './Doctors.css';
-
-const API_URL = 'http://localhost:5000/api';
 
 const Doctors = () => {
     const [doctors, setDoctors] = useState([]);
@@ -37,10 +35,7 @@ const Doctors = () => {
     const fetchDoctors = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/doctors`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get('/doctors');
             setDoctors(response.data.doctors || []);
             setError('');
         } catch (err) {
@@ -53,21 +48,11 @@ const Doctors = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('token');
-
             if (editingDoctor) {
-                await axios.put(
-                    `${API_URL}/doctors/${editingDoctor.id}`,
-                    formData,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
+                await api.put(`/doctors/${editingDoctor.id}`, formData);
                 alert('Doctor updated successfully!');
             } else {
-                await axios.post(
-                    `${API_URL}/doctors`,
-                    formData,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
+                await api.post('/doctors', formData);
                 alert('Doctor added successfully!');
             }
 
@@ -77,6 +62,8 @@ const Doctors = () => {
             setError(err.response?.data?.message || 'Failed to save doctor');
         }
     };
+
+    // ... handleEdit logic remains same ...
 
     const handleEdit = (doctor) => {
         setEditingDoctor(doctor);
@@ -100,10 +87,7 @@ const Doctors = () => {
         }
 
         try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`${API_URL}/doctors/${doctorId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.delete(`/doctors/${doctorId}`);
             alert('Doctor deleted successfully!');
             fetchDoctors();
         } catch (err) {
@@ -139,17 +123,10 @@ const Doctors = () => {
 
     const handleViewCommission = async (doctor) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(
-                `${API_URL}/doctors/${doctor.id}/outstanding`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const response = await api.get(`/doctors/${doctor.id}/outstanding`);
 
             // Also fetch payout history
-            const payoutResponse = await axios.get(
-                `${API_URL}/doctors/${doctor.id}/payouts`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const payoutResponse = await api.get(`/doctors/${doctor.id}/payouts`);
 
             setSelectedDoctor(doctor);
             setCommissionData(response.data);
@@ -163,12 +140,7 @@ const Doctors = () => {
 
     const handleRecordPayout = async () => {
         try {
-            const token = localStorage.getItem('token');
-            await axios.post(
-                `${API_URL}/doctors/${selectedDoctor.id}/payout`,
-                payoutForm,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            await api.post(`/doctors/${selectedDoctor.id}/payout`, payoutForm);
 
             alert('Payout recorded successfully!');
 

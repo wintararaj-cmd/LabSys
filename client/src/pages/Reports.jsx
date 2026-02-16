@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import './Reports.css';
-
-const API_URL = 'http://localhost:5000/api';
 
 const Reports = () => {
     const [reports, setReports] = useState([]);
@@ -25,10 +23,7 @@ const Reports = () => {
     const fetchReports = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/reports`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get('/reports');
             setReports(response.data.reports || []);
             setError('');
         } catch (err) {
@@ -41,10 +36,7 @@ const Reports = () => {
 
     const handleViewReport = async (reportId) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/reports/${reportId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get(`/reports/${reportId}`);
             const reportData = response.data.report || response.data;
             setSelectedReport(reportData);
 
@@ -62,6 +54,8 @@ const Reports = () => {
             setError(err.response?.data?.message || 'Failed to fetch report details');
         }
     };
+
+    // ... (handleResultChange, checkAbnormalValue remain unchanged)
 
     const handleResultChange = (testId, field, value) => {
         setTestResults(prev => ({
@@ -93,17 +87,15 @@ const Reports = () => {
         if (!selectedReport) return;
 
         try {
-            const token = localStorage.getItem('token');
             const results = Object.entries(testResults).map(([testId, data]) => ({
                 test_id: parseInt(testId),
                 result_value: data.result_value,
                 remarks: data.remarks
             }));
 
-            await axios.put(
-                `${API_URL}/reports/${selectedReport.id}/results`,
-                { results },
-                { headers: { Authorization: `Bearer ${token}` } }
+            await api.put(
+                `/reports/${selectedReport.id}/results`,
+                { results }
             );
 
             alert('Results saved successfully!');
@@ -123,11 +115,9 @@ const Reports = () => {
         }
 
         try {
-            const token = localStorage.getItem('token');
-            await axios.put(
-                `${API_URL}/reports/${selectedReport.id}/verify`,
-                { verification_note: verificationNote },
-                { headers: { Authorization: `Bearer ${token}` } }
+            await api.put(
+                `/reports/${selectedReport.id}/verify`,
+                { verification_note: verificationNote }
             );
 
             alert('Report verified successfully!');
@@ -142,9 +132,7 @@ const Reports = () => {
 
     const handleDownloadPDF = async (reportId) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`${API_URL}/reports/${reportId}/pdf`, {
-                headers: { Authorization: `Bearer ${token}` },
+            const response = await api.get(`/reports/${reportId}/pdf`, {
                 responseType: 'blob'
             });
 
