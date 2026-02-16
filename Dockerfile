@@ -34,4 +34,4 @@ COPY --from=builder /app/dist ./public
 EXPOSE 5000
 
 # Start script
-CMD ["sh", "-c", "node scripts/migrate.js && node server.js"]
+CMD ["sh", "-c", "node scripts/migrate.js && node scripts/seed.js && node server.js"]
