@@ -1,0 +1,26 @@
+{
+    "name": "labsys-saas",
+    "version": "1.0.0",
+    "description": "Complete Pathology Lab Management System - Multi-Tenant SaaS",
+    "main": "server/server.js",
+    "scripts": {
+        "server": "cd server && npm run dev",
+        "client": "cd client && npm run dev",
+        "install-all": "cd server && npm install && cd ../client && npm install",
+        "dev": "concurrently \"npm run server\" \"npm run client\"",
+        "build": "cd client && npm run build"
+    },
+    "keywords": [
+        "pathology",
+        "lab",
+        "lims",
+        "saas",
+        "healthcare",
+        "india"
+    ],
+    "author": "Senior Full-Stack SaaS Architect",
+    "license": "PROPRIETARY",
+    "devDependencies": {
+        "concurrently": "^7.6.0"
+    }
+}

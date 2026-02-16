@@ -1,0 +1,57 @@
+.tests-container {
+    max-width: 1400px;
+}
+
+.test-form {
+    padding: var(--spacing-md);
+}
+
+.filters {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+}
+
+.search-input {
+    flex: 2;
+}
+
+.category-filter {
+    flex: 1;
+    min-width: 200px;
+}
+
+.category-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--gray-100);
+    color: var(--gray-700);
+}
+
+.price {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.cost {
+    color: var(--gray-600);
+    font-weight: 500;
+}
+
+.margin-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    color: #065f46;
+}
+
+.badge-secondary {
+    background-color: var(--gray-200);
+    color: var(--gray-700);
+}
