@@ -28,7 +28,8 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Health Check
-app.get('/', (req, res) => {
+// Health Check
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'LabSys API is running' });
 });
 
