@@ -27,10 +27,10 @@ async function migrate() {
             // 2. Run incremental updates if any
             console.log('Running incremental updates...');
             try {
-                // Example: safe add column
                 await pool.query(`
                     ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS branch_id INT REFERENCES branches(id) ON DELETE SET NULL;
                     ALTER TABLE patients ADD COLUMN IF NOT EXISTS branch_id INT REFERENCES branches(id) ON DELETE SET NULL;
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS sample_id VARCHAR(50);
                 `);
                 console.log('Incremental updates applied.');
             } catch (err) {
