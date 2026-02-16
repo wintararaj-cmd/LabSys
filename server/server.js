@@ -58,8 +58,21 @@ app.use('/api/branches', branchRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/backup', backupRoutes);
 
-// Serve static files (for PDF downloads)
+// Serve uploads statically
 app.use('/uploads', express.static('uploads'));
+
+// Serve Frontend in Production
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  // Serve static files from the React app build directory
+  app.use(express.static(path.join(__dirname, 'public')));
+
+  // The "catchall" handler: for any request that doesn't
+  // match one above, send back React's index.html file.
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
+}
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
