@@ -10,8 +10,7 @@ const seed = async () => {
         const adminEmail = process.env.ADMIN_EMAIL || 'admin@labsys.com';
         const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [adminEmail]);
         if (userCheck.rows.length > 0) {
-            console.log(`Admin user ${adminEmail} already exists. Skipping seed.`);
-            process.exit(0);
+            console.log(`Admin user ${adminEmail} already exists. Skipping admin creation.`);
         }
 
         console.log(`Admin user ${adminEmail} not found. Seeding...`);
@@ -46,18 +45,22 @@ const seed = async () => {
             console.log(`Created Branch: Main Branch (ID: ${branchId})`);
         }
 
-        // Create Admin User
-        const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+        if (userCheck.rows.length === 0) {
+            // Create Admin User
+            const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(adminPassword, salt);
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(adminPassword, salt);
 
-        await pool.query(`
-            INSERT INTO users (tenant_id, branch_id, name, email, password_hash, role)
-            VALUES ($1, $2, $3, $4, $5, $6)
-        `, [tenantId, branchId, 'Super Admin', adminEmail, hashedPassword, 'ADMIN']);
+            await pool.query(`
+                INSERT INTO users (tenant_id, branch_id, name, email, password_hash, role)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            `, [tenantId, branchId, 'Super Admin', adminEmail, hashedPassword, 'ADMIN']);
 
-        console.log(`Created Admin User: ${adminEmail}`);
+            console.log(`Created Admin User: ${adminEmail}`);
+        } else {
+            console.log(`Admin user ${adminEmail} already exists. Skipping admin creation.`);
+        }
 
         // --- EXTENDED DEMO DATA ---
 
