@@ -2,7 +2,7 @@ FROM node:18-slim AS builder
 
 WORKDIR /app
 COPY client/package*.json ./
-RUN npm install
+RUN npm install --include=dev
 COPY client/ ./
 RUN npm run build
 
