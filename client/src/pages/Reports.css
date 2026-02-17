@@ -580,6 +580,7 @@
     padding: 2px 6px;
     border-radius: 4px;
 }
+
 .checkbox-list {
     background: #f8f9fa;
     padding: 10px;
@@ -596,16 +597,16 @@
     padding: 5px 0;
 }
 
-.checkbox-item input[type=" checkbox\] {
- width: 18px;
- height: 18px;
- cursor: pointer;
+.checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
 }
 
 .checkbox-item label {
- cursor: pointer;
- font-size: 14px;
- color: #2c3e50;
+    cursor: pointer;
+    font-size: 14px;
+    color: #2c3e50;
 }
 
 .outbound-badge {
@@ -618,10 +619,25 @@
     min-width: 80px;
 }
 
-.outbound-not-sent { background: #f1f5f9; color: #64748b; }
-.outbound-sent { background: #fff7ed; color: #c2410c; }
-.outbound-received { background: #f0f9ff; color: #0369a1; }
-.outbound-uploaded { background: #f0fdf4; color: #15803d; }
+.outbound-not-sent {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.outbound-sent {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.outbound-received {
+    background: #f0f9ff;
+    color: #0369a1;
+}
+
+.outbound-uploaded {
+    background: #f0fdf4;
+    color: #15803d;
+}
 
 
 .outbound-status-stack {
