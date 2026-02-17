@@ -110,12 +110,55 @@ const seed = async () => {
         if (inventoryCheck.rows.length === 0) {
             console.log('Seeding demo inventory...');
             await pool.query(`
-                INSERT INTO inventory_items (tenant_id, name, batch_number, expiry_date, quantity, unit, supplier, low_stock_threshold)
+                INSERT INTO inventory_items (tenant_id, name, batch_number, expiry_date, quantity, unit, supplier_name, reorder_level)
                 VALUES 
                 ($1, 'Vacutainer (Edta)', 'BTCH-001', '2025-12-31', 500, 'Pack', 'LabSupplies Inc', 50),
                 ($1, 'Glucose Reagent', 'REAG-99', '2025-06-30', 20, 'Vial', 'BioTech Solutions', 5),
                 ($1, 'Nitrile Gloves', 'GLV-102', '2026-03-15', 100, 'Box', 'SafeTouch', 10)
             `, [tenantId]);
+        }
+
+        // 9. Seed Invoices & Reports (Transactional Data for Dashboard)
+        const invoiceCheck = await pool.query('SELECT id FROM invoices WHERE invoice_number = $1 AND tenant_id = $2', ['INV-DEMO-001', tenantId]);
+
+        if (invoiceCheck.rows.length === 0) {
+            console.log('Seeding demo invoices and reports...');
+
+            // Get IDs
+            const pRes = await pool.query('SELECT id FROM patients WHERE uhid = $1', ['UHID001']);
+            const dRes = await pool.query('SELECT id FROM doctors WHERE email = $1', ['arpit@example.com']);
+            const tRes = await pool.query('SELECT id, price FROM tests WHERE code = $1', ['CBC01']);
+
+            if (pRes.rows.length > 0 && dRes.rows.length > 0 && tRes.rows.length > 0) {
+                const pid = pRes.rows[0].id;
+                const did = dRes.rows[0].id;
+                const tid = tRes.rows[0].id;
+                const price = tRes.rows[0].price; // 500
+
+                // Create Invoice
+                const invRes = await pool.query(`
+                    INSERT INTO invoices (tenant_id, branch_id, patient_id, doctor_id, invoice_number, total_amount, net_amount, paid_amount, payment_status, payment_mode)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id
+                `, [tenantId, branchId, pid, did, 'INV-DEMO-001', price, price, price, 'PAID', 'CASH']);
+
+                const invId = invRes.rows[0].id;
+
+                // Create Invoice Item
+                await pool.query(`
+                    INSERT INTO invoice_items (invoice_id, test_id, price)
+                    VALUES ($1, $2, $3)
+                `, [invId, tid, price]);
+
+                // Create Report (Pending)
+                await pool.query(`
+                    INSERT INTO reports (invoice_id, test_id, status, sample_id)
+                    VALUES ($1, $2, 'PENDING', 'SMP-001')
+                `, [invId, tid]);
+
+                console.log('Seeded Invoice INV-DEMO-001 with Pending Report');
+            } else {
+                console.log('Skipping invoice seed: Missing dependencies (patient/doctor/test)');
+            }
         }
 
         console.log('Seeding completed successfully.');
