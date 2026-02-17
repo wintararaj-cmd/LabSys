@@ -143,7 +143,7 @@ CREATE TABLE inventory_items (
     item_code VARCHAR(50),
     category VARCHAR(100),
     unit VARCHAR(20),
-    quantity INT,
+    quantity DECIMAL(10, 2),
     reorder_level INT DEFAULT 10,
     unit_price DECIMAL(10, 2),
     supplier_name VARCHAR(100),

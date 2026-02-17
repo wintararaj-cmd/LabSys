@@ -38,6 +38,8 @@ async function migrate() {
                     ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS location VARCHAR(100);
                     ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS manufacturer VARCHAR(100);
                     ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS reorder_level INT DEFAULT 10;
+                    
+                    ALTER TABLE inventory_items ALTER COLUMN quantity TYPE DECIMAL(10, 2);
 
                     ALTER TABLE patients ADD COLUMN IF NOT EXISTS branch_id INT REFERENCES branches(id) ON DELETE SET NULL;
                     ALTER TABLE reports ADD COLUMN IF NOT EXISTS sample_id VARCHAR(50);

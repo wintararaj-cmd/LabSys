@@ -302,9 +302,12 @@ const adjustStock = async (req, res) => {
         }
 
         const item = itemRes.rows[0];
+        const currentQty = parseFloat(item.quantity) || 0;
+        const adjustmentQty = parseFloat(adjustment) || 0;
+
         const newQuantity = type === 'ADD'
-            ? parseFloat(item.quantity) + parseFloat(adjustment)
-            : parseFloat(item.quantity) - parseFloat(adjustment);
+            ? currentQty + adjustmentQty
+            : currentQty - adjustmentQty;
 
         if (newQuantity < 0) {
             await client.query('ROLLBACK');
@@ -313,7 +316,7 @@ const adjustStock = async (req, res) => {
 
         const updatedRes = await client.query(
             'UPDATE inventory_items SET quantity = $1, last_reorder_date = $2 WHERE id = $3 RETURNING *',
-            [newQuantity, type === 'ADD' ? new Date() : item.last_reorder_date, id]
+            [newQuantity, type === 'ADD' ? new Date() : (item.last_reorder_date || null), id]
         );
 
         await logInventoryChange(client, {
