@@ -43,6 +43,12 @@ function Layout() {
                     <NavLink to="/purchases" className="nav-link">
                         <span>📥</span> Purchases
                     </NavLink>
+                    <NavLink to="/external-labs" className="nav-link">
+                        <span>🔬</span> External Labs
+                    </NavLink>
+                    <NavLink to="/sample-tracking" className="nav-link">
+                        <span>🔍</span> Sample Tracking
+                    </NavLink>
                     {user?.role === 'ADMIN' && (
                         <>
                             <NavLink to="/branches" className="nav-link">

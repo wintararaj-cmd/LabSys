@@ -118,7 +118,19 @@ const seed = async () => {
             `, [tenantId]);
         }
 
-        // 9. Seed Invoices & Reports (Transactional Data for Dashboard)
+        // 9. Seed External Labs
+        const labsCheck = await pool.query('SELECT id FROM external_labs WHERE tenant_id = $1 LIMIT 1', [tenantId]);
+        if (labsCheck.rows.length === 0) {
+            console.log('Seeding demo external labs...');
+            await pool.query(`
+                INSERT INTO external_labs (tenant_id, name, contact_person, phone, email, address)
+                VALUES 
+                ($1, 'City Referral Lab', 'Mr. Verma', '9898989898', 'city@referral.com', 'Downtown, City Center'),
+                ($1, 'Apex Diagnostic Center', 'Ms. Sneha', '9797979797', 'contact@apex.com', 'Main Rd, Uplands')
+            `, [tenantId]);
+        }
+
+        // 10. Seed Invoices & Reports (Transactional Data for Dashboard)
         const invoiceCheck = await pool.query('SELECT id FROM invoices WHERE invoice_number = $1 AND tenant_id = $2', ['INV-DEMO-001', tenantId]);
 
         if (invoiceCheck.rows.length === 0) {

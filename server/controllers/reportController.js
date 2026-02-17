@@ -13,11 +13,17 @@ const getAllReports = async (req, res) => {
             SELECT i.id as invoice_id, i.invoice_number, i.created_at, i.payment_status,
                    p.name as patient_name, p.uhid as patient_uhid, p.age, p.gender,
                    COUNT(r.id) as test_count,
+                   array_agg(r.id) as report_ids,
                    array_agg(r.status) as report_statuses,
-                   array_agg(r.sample_id) as sample_ids
+                   array_agg(r.sample_id) as sample_ids,
+                   array_agg(t.name) as test_names,
+                   array_agg(r.outbound_status) as outbound_statuses,
+                   array_agg(el.name) as external_lab_names
             FROM invoices i
             JOIN patients p ON i.patient_id = p.id
             LEFT JOIN reports r ON i.id = r.invoice_id
+            LEFT JOIN tests t ON r.test_id = t.id
+            LEFT JOIN external_labs el ON r.external_lab_id = el.id
             WHERE i.tenant_id = $1
         `;
 
@@ -52,11 +58,20 @@ const getAllReports = async (req, res) => {
 
         // Normalize data for frontend
         const reports = result.rows.map(row => {
+            const reportIds = Array.isArray(row.report_ids) ? row.report_ids.filter(id => id !== null) : [];
             const statuses = Array.isArray(row.report_statuses) ? row.report_statuses.filter(s => s !== null) : [];
             const sampleIds = Array.isArray(row.sample_ids) ? row.sample_ids.filter(s => s !== null) : [];
+            const testNames = Array.isArray(row.test_names) ? row.test_names.filter(t => t !== null) : [];
+            const outboundStatuses = Array.isArray(row.outbound_statuses) ? row.outbound_statuses.filter(s => s !== null) : [];
+            const externalLabNames = Array.isArray(row.external_lab_names) ? row.external_lab_names.filter(n => n !== null) : [];
 
             return {
                 ...row,
+                report_ids: reportIds,
+                test_names: testNames,
+                outbound_statuses: outboundStatuses,
+                outbound_status: outboundStatuses.length > 0 ? outboundStatuses[0] : 'NOT_SENT',
+                external_lab_name: externalLabNames.length > 0 ? externalLabNames[0] : null,
                 id: row.invoice_id,
                 sample_id: sampleIds.length > 0 ? sampleIds[0] : '-',
                 status: statuses.includes('PENDING') ? 'PENDING' :
@@ -404,6 +419,80 @@ const downloadReportPDF = async (req, res) => {
     }
 }
 
+
+
+/**
+ * Update outbound status for a report
+ */
+const updateOutboundStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { external_lab_id, outbound_status, tracking_number, courier_name, external_cost, reportIds } = req.body;
+        const tenantId = req.tenantId;
+
+        // Sanitize numeric fields
+        const labId = external_lab_id === '' ? null : external_lab_id;
+        const cost = external_cost === '' ? 0 : external_cost;
+        const idsToUpdate = (reportIds && Array.isArray(reportIds) && reportIds.length > 0) ? reportIds : [id];
+
+        const result = await query(
+            `UPDATE reports 
+             SET external_lab_id = $1, 
+                 outbound_status = $2, 
+                 tracking_number = $3, 
+                 courier_name = $4,
+                 external_cost = $5
+             WHERE id = ANY($6::int[]) AND invoice_id IN (SELECT id FROM invoices WHERE tenant_id = $7)
+             RETURNING *`,
+            [labId, outbound_status, tracking_number, courier_name, cost, idsToUpdate, tenantId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Report not found' });
+        }
+
+        res.json({
+            message: 'Outbound status updated successfully',
+            report: result.rows[0],
+        });
+
+    } catch (error) {
+        console.error('Update outbound status error:', error);
+        res.status(500).json({ error: 'Failed to update outbound status' });
+    }
+};
+
+/**
+ * Get report by Sample ID
+ */
+const getReportBySampleId = async (req, res) => {
+    try {
+        const { sampleId } = req.params;
+        const tenantId = req.tenantId;
+
+        const result = await query(
+            `SELECT r.*, p.name as patient_name, p.uhid as patient_uhid, t.name as test_name,
+                    el.name as external_lab_name
+             FROM reports r
+             JOIN invoices i ON r.invoice_id = i.id
+             JOIN patients p ON i.patient_id = p.id
+             JOIN tests t ON r.test_id = t.id
+             LEFT JOIN external_labs el ON r.external_lab_id = el.id
+             WHERE r.sample_id = $1 AND i.tenant_id = $2`,
+            [sampleId, tenantId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Sample not found' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Get report by sample ID error:', error);
+        res.status(500).json({ error: 'Failed to fetch sample details' });
+    }
+};
+
 module.exports = {
     getAllReports,
     getPendingReports,
@@ -413,4 +502,6 @@ module.exports = {
     getReportsByInvoice,
     getReportById,
     downloadReportPDF,
+    updateOutboundStatus,
+    getReportBySampleId
 };

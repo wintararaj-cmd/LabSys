@@ -11,6 +11,11 @@ DROP TABLE IF EXISTS doctors CASCADE;
 DROP TABLE IF EXISTS branches CASCADE;
 DROP TABLE IF EXISTS tenants CASCADE;
 DROP TABLE IF EXISTS inventory_items CASCADE;
+DROP TABLE IF EXISTS inventory_logs CASCADE;
+DROP TABLE IF EXISTS doctor_payouts CASCADE;
+DROP TABLE IF EXISTS purchase_invoices CASCADE;
+DROP TABLE IF EXISTS purchase_items CASCADE;
+DROP TABLE IF EXISTS external_labs CASCADE;
 
 -- 1. Tenants (Labs)
 CREATE TABLE tenants (
@@ -120,7 +125,19 @@ CREATE TABLE invoice_items (
     gst_percentage DECIMAL(5,2) DEFAULT 0.00
 );
 
--- 9. Reports (Test Results)
+-- 9. External Reference Labs
+CREATE TABLE external_labs (
+    id SERIAL PRIMARY KEY,
+    tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    contact_person VARCHAR(100),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 10. Reports (Test Results)
 CREATE TABLE reports (
     id SERIAL PRIMARY KEY,
     invoice_id INT REFERENCES invoices(id) ON DELETE CASCADE,
@@ -133,10 +150,15 @@ CREATE TABLE reports (
     verified_at TIMESTAMP,
     report_pdf_url TEXT,
     comments TEXT,
-    sample_id VARCHAR(50)
+    sample_id VARCHAR(50),
+    external_lab_id INT REFERENCES external_labs(id) ON DELETE SET NULL,
+    outbound_status VARCHAR(20) DEFAULT 'NOT_SENT' CHECK (outbound_status IN ('NOT_SENT', 'SENT', 'RECEIVED', 'REPORT_UPLOADED')),
+    tracking_number VARCHAR(100),
+    courier_name VARCHAR(100),
+    external_cost DECIMAL(10,2) DEFAULT 0.00
 );
 
--- 10. Inventory Items
+-- 11. Inventory Items
 CREATE TABLE inventory_items (
     id SERIAL PRIMARY KEY,
     tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
@@ -158,7 +180,7 @@ CREATE TABLE inventory_items (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. Inventory Logs (Transaction History)
+-- 12. Inventory Logs (Transaction History)
 CREATE TABLE inventory_logs (
     id SERIAL PRIMARY KEY,
     tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
@@ -170,7 +192,7 @@ CREATE TABLE inventory_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 12. Doctor Payouts
+-- 13. Doctor Payouts
 CREATE TABLE doctor_payouts (
     id SERIAL PRIMARY KEY,
     tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
@@ -183,7 +205,7 @@ CREATE TABLE doctor_payouts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 13. Purchase Invoices
+-- 14. Purchase Invoices
 CREATE TABLE purchase_invoices (
     id SERIAL PRIMARY KEY,
     tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
@@ -200,7 +222,7 @@ CREATE TABLE purchase_invoices (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 14. Purchase Items
+-- 15. Purchase Items
 CREATE TABLE purchase_items (
     id SERIAL PRIMARY KEY,
     purchase_id INT REFERENCES purchase_invoices(id) ON DELETE CASCADE,

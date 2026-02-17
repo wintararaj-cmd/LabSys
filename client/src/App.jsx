@@ -15,6 +15,8 @@ import Settings from './pages/Settings';
 import Brochure from './pages/Brochure';
 import FinancialReports from './pages/FinancialReports';
 import PurchaseInvoices from './pages/PurchaseInvoices';
+import ExternalLabs from './pages/ExternalLabs';
+import SampleTracking from './pages/SampleTracking';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -52,6 +54,8 @@ function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="finance" element={<FinancialReports />} />
                 <Route path="purchases" element={<PurchaseInvoices />} />
+                <Route path="external-labs" element={<ExternalLabs />} />
+                <Route path="sample-tracking" element={<SampleTracking />} />
             </Route>
         </Routes>
     );

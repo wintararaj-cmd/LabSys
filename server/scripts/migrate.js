@@ -83,6 +83,23 @@ async function migrate() {
                         expiry_date DATE,
                         total_price DECIMAL(10,2)
                     );
+
+                    CREATE TABLE IF NOT EXISTS external_labs (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+                        name VARCHAR(255) NOT NULL,
+                        contact_person VARCHAR(100),
+                        phone VARCHAR(20),
+                        email VARCHAR(255),
+                        address TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS external_lab_id INT REFERENCES external_labs(id) ON DELETE SET NULL;
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS outbound_status VARCHAR(20) DEFAULT 'NOT_SENT';
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100);
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS courier_name VARCHAR(100);
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS external_cost DECIMAL(10,2) DEFAULT 0.00;
                 `);
                 console.log('Incremental updates applied.');
             } catch (err) {

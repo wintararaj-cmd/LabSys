@@ -31,4 +31,10 @@ router.get('/invoice/:invoiceId', reportController.getReportsByInvoice);
 // Download report PDF
 router.get('/:id/pdf', reportController.downloadReportPDF);
 
+// Update outbound status
+router.put('/:id/outbound-status', checkRole(['ADMIN', 'TECHNICIAN']), reportController.updateOutboundStatus);
+
+// Search by sample ID
+router.get('/sample/:sampleId', reportController.getReportBySampleId);
+
 module.exports = router;

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import './Reports.css';
+import BarcodeLabel from '../components/BarcodeLabel';
+import ReactDOM from 'react-dom';
 
 const Reports = () => {
     const [reports, setReports] = useState([]);
@@ -13,6 +15,18 @@ const Reports = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [testResults, setTestResults] = useState({});
     const [verificationNote, setVerificationNote] = useState('');
+
+    // Outbound Sample State
+    const [showOutboundModal, setShowOutboundModal] = useState(false);
+    const [externalLabs, setExternalLabs] = useState([]);
+    const [outboundData, setOutboundData] = useState({
+        external_lab_id: '',
+        outbound_status: 'NOT_SENT',
+        tracking_number: '',
+        courier_name: '',
+        external_cost: ''
+    });
+    const [selectedReportIds, setSelectedReportIds] = useState([]);
 
     const reportsPerPage = 10;
 
@@ -148,6 +162,89 @@ const Reports = () => {
         }
     };
 
+    // --- Outbound Sample Handlers ---
+
+    const fetchExternalLabs = async () => {
+        try {
+            const response = await api.get('/external-labs');
+            setExternalLabs(response.data);
+        } catch (err) {
+            console.error('Failed to fetch external labs', err);
+        }
+    };
+
+    const handleOpenOutboundModal = (report) => {
+        setSelectedReport(report);
+        setSelectedReportIds(report.report_ids || []);
+        setOutboundData({
+            external_lab_id: report.external_lab_id || '',
+            outbound_status: report.outbound_status || 'NOT_SENT',
+            tracking_number: report.tracking_number || '',
+            courier_name: report.courier_name || '',
+            external_cost: report.external_cost || ''
+        });
+        fetchExternalLabs();
+        setShowOutboundModal(true);
+    };
+
+    const handleSaveOutbound = async () => {
+        if (selectedReportIds.length === 0) {
+            alert('Please select at least one sample');
+            return;
+        }
+
+        try {
+            await api.put(`/reports/${selectedReport.id}/outbound-status`, {
+                ...outboundData,
+                reportIds: selectedReportIds
+            });
+            setShowOutboundModal(false);
+            fetchReports();
+            alert('Outbound status updated!');
+        } catch (err) {
+            console.error('Failed to update outbound status', err);
+            alert('Failed to update status');
+        }
+    };
+
+    const handlePrintBarcode = (report) => {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write('<html><head><title>Print Barcode</title>');
+        printWindow.document.write('<style>@media print { .barcode-wrapper { page-break-after: always; } }</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write('<div id="barcode-container"></div>');
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+
+        const container = printWindow.document.getElementById('barcode-container');
+
+        // Render 1 label per test/sample if plural, otherwise just one
+        const sampleIds = report.sample_ids || [report.sample_id]; // Use the aggregated array
+        const testNames = report.test_names || [(report.test_count + ' Tests')];
+
+        ReactDOM.render(
+            <>
+                {sampleIds.map((sid, index) => (
+                    <div key={index} className="barcode-wrapper">
+                        <BarcodeLabel
+                            sampleId={sid || '-'}
+                            patientName={report.patient_name}
+                            testName={testNames[index] || 'Lab Test'}
+                            uhid={report.patient_uhid}
+                            date={new Date(report.created_at).toLocaleDateString()}
+                        />
+                    </div>
+                ))}
+            </>,
+            container
+        );
+
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 800);
+    };
+
     // Filter reports
     const filteredReports = reports.filter(report => {
         const matchesStatus = statusFilter === 'ALL' || report.status === statusFilter;
@@ -172,6 +269,17 @@ const Reports = () => {
         };
         const badge = badges[status] || badges.PENDING;
         return <span className={`status-badge ${badge.class}`}>{badge.text}</span>;
+    };
+
+    const getOutboundBadge = (status) => {
+        const badges = {
+            'NOT_SENT': { class: 'outbound-not-sent', text: 'Internal' },
+            'SENT': { class: 'outbound-sent', text: 'Sent' },
+            'RECEIVED': { class: 'outbound-received', text: 'Lab Received' },
+            'REPORT_UPLOADED': { class: 'outbound-uploaded', text: 'Uploaded' }
+        };
+        const badge = badges[status] || badges['NOT_SENT'];
+        return <span className={`outbound-badge ${badge.class}`}>{badge.text}</span>;
     };
 
     if (loading) {
@@ -224,6 +332,7 @@ const Reports = () => {
                             <th>Tests</th>
                             <th>Date</th>
                             <th>Status</th>
+                            <th>Outbound</th>
                             <th>Sample ID</th>
                             <th>Actions</th>
                         </tr>
@@ -245,6 +354,15 @@ const Reports = () => {
                                     <td>{new Date(report.created_at).toLocaleDateString()}</td>
                                     <td>{getStatusBadge(report.status)}</td>
                                     <td>
+                                        <div className="outbound-status-stack">
+                                            {report.outbound_statuses && report.outbound_statuses.map((status, idx) => (
+                                                <div key={idx} title={`${report.test_names[idx]}: ${status}`}>
+                                                    {getOutboundBadge(status)}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </td>
+                                    <td>
                                         <span className="sample-id-badge">{report.sample_id}</span>
                                     </td>
                                     <td className="actions">
@@ -253,6 +371,20 @@ const Reports = () => {
                                             className="btn-view"
                                         >
                                             {report.status === 'PENDING' ? 'Enter Results' : 'View'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleOpenOutboundModal(report)}
+                                            className="btn-outbound"
+                                            title="Send to External Lab"
+                                        >
+                                            📤 Send
+                                        </button>
+                                        <button
+                                            onClick={() => handlePrintBarcode(report)}
+                                            className="btn-barcode"
+                                            title="Print Barcode"
+                                        >
+                                            🖨️ Barcode
                                         </button>
                                         {report.status === 'VERIFIED' && (
                                             <button
@@ -289,7 +421,91 @@ const Reports = () => {
                 </div>
             )}
 
-            {/* Result Entry Modal */}
+            {/* Outbound Modal */}
+            {showOutboundModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h2>Outbound Sample Management</h2>
+                        <div className="form-group">
+                            <label>Select Samples/Tests:</label>
+                            <div className="checkbox-list">
+                                {selectedReport?.report_ids?.map((id, index) => (
+                                    <div key={id} className="checkbox-item">
+                                        <input
+                                            type="checkbox"
+                                            id={`report-${id}`}
+                                            checked={selectedReportIds.includes(id)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedReportIds([...selectedReportIds, id]);
+                                                } else {
+                                                    setSelectedReportIds(selectedReportIds.filter(rid => rid !== id));
+                                                }
+                                            }}
+                                        />
+                                        <label htmlFor={`report-${id}`}>
+                                            <strong>{selectedReport.sample_ids[index]}</strong> - {selectedReport.test_names[index]}
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label>External Lab:</label>
+                            <select
+                                value={outboundData.external_lab_id}
+                                onChange={(e) => setOutboundData({ ...outboundData, external_lab_id: e.target.value })}
+                            >
+                                <option value="">Select Lab</option>
+                                {externalLabs.map(lab => (
+                                    <option key={lab.id} value={lab.id}>{lab.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Status:</label>
+                            <select
+                                value={outboundData.outbound_status}
+                                onChange={(e) => setOutboundData({ ...outboundData, outbound_status: e.target.value })}
+                            >
+                                <option value="NOT_SENT">Not Sent</option>
+                                <option value="SENT">Sent to Lab</option>
+                                <option value="RECEIVED">Received by Lab</option>
+                                <option value="REPORT_UPLOADED">Report Uploaded</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Tracking Number:</label>
+                            <input
+                                type="text"
+                                value={outboundData.tracking_number}
+                                onChange={(e) => setOutboundData({ ...outboundData, tracking_number: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Courier Name:</label>
+                            <input
+                                type="text"
+                                value={outboundData.courier_name}
+                                onChange={(e) => setOutboundData({ ...outboundData, courier_name: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>External Cost:</label>
+                            <input
+                                type="number"
+                                value={outboundData.external_cost}
+                                onChange={(e) => setOutboundData({ ...outboundData, external_cost: e.target.value })}
+                            />
+                        </div>
+                        <div className="modal-actions">
+                            <button onClick={() => setShowOutboundModal(false)} className="btn-cancel">Cancel</button>
+                            <button onClick={handleSaveOutbound} className="btn-save">Save Update</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Result Entry Modal (existing) */}
             {showResultForm && selectedReport && (
                 <div className="modal-overlay" onClick={() => setShowResultForm(false)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
