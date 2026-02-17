@@ -6,18 +6,18 @@ const migrate = async () => {
         console.log('Starting schema update...');
 
         await pool.query(`
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS branch_id INT REFERENCES branches(id) ON DELETE SET NULL;
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS last_reorder_date TIMESTAMP;
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS item_code VARCHAR(50);
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS category VARCHAR(100);
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS unit_price DECIMAL(10, 2);
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS supplier_name VARCHAR(100);
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS supplier_contact VARCHAR(100);
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS location VARCHAR(100);
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS manufacturer VARCHAR(100);
-            ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS reorder_level INT DEFAULT 10;
-            
             ALTER TABLE inventory_items ALTER COLUMN quantity TYPE DECIMAL(10, 2);
+
+            CREATE TABLE IF NOT EXISTS inventory_logs (
+                id SERIAL PRIMARY KEY,
+                tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+                branch_id INT REFERENCES branches(id) ON DELETE SET NULL,
+                item_id INT REFERENCES inventory_items(id) ON DELETE CASCADE,
+                type VARCHAR(20),
+                quantity DECIMAL(10, 2),
+                reason TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
             
             ALTER TABLE patients ADD COLUMN IF NOT EXISTS branch_id INT REFERENCES branches(id) ON DELETE SET NULL;
             ALTER TABLE reports ADD COLUMN IF NOT EXISTS sample_id VARCHAR(50);

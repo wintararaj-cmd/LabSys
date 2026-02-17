@@ -9,6 +9,9 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy for express-rate-limit (Coolify/Traefik)
+app.set('trust proxy', 1);
+
 // Database Connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

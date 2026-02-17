@@ -155,3 +155,15 @@ CREATE TABLE inventory_items (
     last_reorder_date TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 11. Inventory Logs (Transaction History)
+CREATE TABLE inventory_logs (
+    id SERIAL PRIMARY KEY,
+    tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+    branch_id INT REFERENCES branches(id) ON DELETE SET NULL,
+    item_id INT REFERENCES inventory_items(id) ON DELETE CASCADE,
+    type VARCHAR(20), -- ADD, REMOVE, INITIAL
+    quantity DECIMAL(10, 2),
+    reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
