@@ -13,6 +13,8 @@ import Inventory from './pages/Inventory';
 import Branches from './pages/Branches';
 import Settings from './pages/Settings';
 import Brochure from './pages/Brochure';
+import FinancialReports from './pages/FinancialReports';
+import PurchaseInvoices from './pages/PurchaseInvoices';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -48,6 +50,8 @@ function App() {
                 <Route path="inventory" element={<Inventory />} />
                 <Route path="branches" element={<Branches />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="finance" element={<FinancialReports />} />
+                <Route path="purchases" element={<PurchaseInvoices />} />
             </Route>
         </Routes>
     );

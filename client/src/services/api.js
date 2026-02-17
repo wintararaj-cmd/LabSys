@@ -120,4 +120,20 @@ export const backupAPI = {
     import: (data) => api.post('/backup/import', { backupData: data }),
 };
 
+// Finance API
+export const financeAPI = {
+    getGSTReport: (params) => api.get('/finance/gst', { params }),
+    getCashBook: (params) => api.get('/finance/cash-book', { params }),
+    getSaleReport: (params) => api.get('/finance/sale', { params }),
+};
+
+// Purchase API
+export const purchaseAPI = {
+    getAll: (params) => api.get('/purchases', { params }),
+    getById: (id) => api.get(`/purchases/${id}`),
+    create: (data) => api.post('/purchases', data),
+    update: (id, data) => api.put(`/purchases/${id}`, data),
+    delete: (id) => api.delete(`/purchases/${id}`),
+};
+
 export default api;

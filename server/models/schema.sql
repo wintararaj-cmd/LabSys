@@ -72,6 +72,7 @@ CREATE TABLE patients (
     gender VARCHAR(10),
     phone VARCHAR(20),
     address TEXT,
+    branch_id INT REFERENCES branches(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -131,7 +132,8 @@ CREATE TABLE reports (
     status VARCHAR(20) CHECK (status IN ('PENDING', 'COMPLETED', 'VERIFIED', 'DELIVERED')),
     verified_at TIMESTAMP,
     report_pdf_url TEXT,
-    comments TEXT
+    comments TEXT,
+    sample_id VARCHAR(50)
 );
 
 -- 10. Inventory Items
@@ -166,4 +168,47 @@ CREATE TABLE inventory_logs (
     quantity DECIMAL(10, 2),
     reason TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Doctor Payouts
+CREATE TABLE doctor_payouts (
+    id SERIAL PRIMARY KEY,
+    tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+    doctor_id INT REFERENCES doctors(id) ON DELETE CASCADE,
+    amount DECIMAL(10,2) NOT NULL,
+    payment_date DATE DEFAULT CURRENT_DATE,
+    payment_mode VARCHAR(20),
+    reference_number VARCHAR(50),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 13. Purchase Invoices
+CREATE TABLE purchase_invoices (
+    id SERIAL PRIMARY KEY,
+    tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+    branch_id INT REFERENCES branches(id) ON DELETE SET NULL,
+    invoice_number VARCHAR(100) NOT NULL,
+    supplier_name VARCHAR(255) NOT NULL,
+    purchase_date DATE NOT NULL,
+    total_amount DECIMAL(10,2),
+    tax_amount DECIMAL(10,2) DEFAULT 0.00,
+    net_amount DECIMAL(10,2),
+    payment_status VARCHAR(20) CHECK (payment_status IN ('PAID', 'PENDING', 'PARTIAL')),
+    payment_mode VARCHAR(20),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. Purchase Items
+CREATE TABLE purchase_items (
+    id SERIAL PRIMARY KEY,
+    purchase_id INT REFERENCES purchase_invoices(id) ON DELETE CASCADE,
+    item_id INT REFERENCES inventory_items(id) ON DELETE CASCADE,
+    quantity DECIMAL(10,2) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    tax_percentage DECIMAL(5,2) DEFAULT 0.00,
+    batch_number VARCHAR(50),
+    expiry_date DATE,
+    total_price DECIMAL(10,2)
 );

@@ -20,6 +20,19 @@ function Billing() {
         selectedTests: []
     });
 
+    const [patientSearch, setPatientSearch] = useState('');
+    const [patientResults, setPatientResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [showPatientModal, setShowPatientModal] = useState(false);
+    const [newPatient, setNewPatient] = useState({
+        name: '',
+        age: '',
+        gender: 'Male',
+        phone: '',
+        address: ''
+    });
+
     const [calculations, setCalculations] = useState({
         total_amount: 0,
         discount_amount: 0,
@@ -49,7 +62,7 @@ function Billing() {
             ]);
 
             setInvoices(invoicesRes.data.invoices || []);
-            setPatients(patientsRes.data.patients || []);
+            // setPatients(patientsRes.data.patients || []); // We'll use search instead
             setTests(testsRes.data.tests || []);
             setDoctors(doctorsRes.data.doctors || []);
         } catch (err) {
@@ -82,6 +95,45 @@ function Billing() {
             net_amount: net,
             balance_amount: balance
         });
+    };
+
+    const handlePatientSearch = async (query) => {
+        setPatientSearch(query);
+        if (query.length < 3) {
+            setPatientResults([]);
+            return;
+        }
+
+        try {
+            setIsSearching(true);
+            const response = await patientAPI.getAll({ search: query, limit: 5 });
+            setPatientResults(response.data.patients || []);
+        } catch (err) {
+            console.error('Search error:', err);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const handleSelectPatient = (patient) => {
+        setSelectedPatient(patient);
+        setFormData({ ...formData, patient_id: patient.id });
+        setPatientSearch('');
+        setPatientResults([]);
+    };
+
+    const handleNewPatientSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const response = await patientAPI.create(newPatient);
+            const registeredPatient = response.data.patient;
+            handleSelectPatient(registeredPatient);
+            setShowPatientModal(false);
+            setNewPatient({ name: '', age: '', gender: 'Male', phone: '', address: '' });
+            alert('Patient registered and selected successfully!');
+        } catch (err) {
+            alert('Registration failed: ' + (err.response?.data?.error || err.message));
+        }
     };
 
     const handleTestToggle = (test) => {
@@ -157,6 +209,7 @@ function Billing() {
             paid_amount: 0,
             selectedTests: []
         });
+        setSelectedPatient(null);
     };
 
     const getPaymentStatusBadge = (status) => {
@@ -275,21 +328,63 @@ function Billing() {
                     <h3 className="card-header">Create New Invoice</h3>
                     <form onSubmit={handleSubmit} className="billing-form">
                         <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Patient *</label>
-                                <select
-                                    className="form-select"
-                                    value={formData.patient_id}
-                                    onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
-                                    required
-                                >
-                                    <option value="">Select Patient</option>
-                                    {patients.map(patient => (
-                                        <option key={patient.id} value={patient.id}>
-                                            {patient.uhid} - {patient.name} ({patient.age}/{patient.gender})
-                                        </option>
-                                    ))}
-                                </select>
+                            <div className="form-group patient-search-wrapper">
+                                <label className="form-label">Patient Selection *</label>
+                                {selectedPatient ? (
+                                    <div className="selected-patient-box">
+                                        <div className="patient-info-mini">
+                                            <strong>{selectedPatient.name}</strong>
+                                            <span>UHID: {selectedPatient.uhid} | Phone: {selectedPatient.phone}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn-text btn-danger"
+                                            onClick={() => setSelectedPatient(null)}
+                                        >
+                                            Change Patient
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="patient-search-input-container">
+                                        <div className="input-group">
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="🔍 Search by Name or Mobile No..."
+                                                value={patientSearch}
+                                                onChange={(e) => handlePatientSearch(e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary"
+                                                onClick={() => setShowPatientModal(true)}
+                                            >
+                                                + New Patient
+                                            </button>
+                                        </div>
+
+                                        {patientResults.length > 0 && (
+                                            <div className="patient-results-dropdown">
+                                                {patientResults.map(p => (
+                                                    <div
+                                                        key={p.id}
+                                                        className="patient-result-item"
+                                                        onClick={() => handleSelectPatient(p)}
+                                                    >
+                                                        <div className="p-name">{p.name} ({p.gender}/{p.age})</div>
+                                                        <div className="p-meta">Phone: {p.phone} | UHID: {p.uhid}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {patientSearch.length >= 3 && patientResults.length === 0 && !isSearching && (
+                                            <div className="patient-no-results">
+                                                No patient found. <a href="#" onClick={(e) => { e.preventDefault(); setShowPatientModal(true); }}>Register now?</a>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="form-group">
@@ -672,6 +767,83 @@ function Billing() {
                                 >
                                     Cancel
                                 </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* New Patient Modal */}
+            {showPatientModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content medium">
+                        <div className="modal-header">
+                            <h3>Register New Patient</h3>
+                            <button className="close-btn" onClick={() => setShowPatientModal(false)}>✕</button>
+                        </div>
+                        <form onSubmit={handleNewPatientSubmit}>
+                            <div className="modal-body">
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Full Name *</label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            required
+                                            value={newPatient.name}
+                                            onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Age *</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            required
+                                            value={newPatient.age}
+                                            onChange={(e) => setNewPatient({ ...newPatient, age: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Gender *</label>
+                                        <select
+                                            className="form-select"
+                                            required
+                                            value={newPatient.gender}
+                                            onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
+                                        >
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Phone/Mobile *</label>
+                                        <input
+                                            type="tel"
+                                            className="form-input"
+                                            required
+                                            value={newPatient.phone}
+                                            onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                                            pattern="[0-9]{10}"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label>Address</label>
+                                    <textarea
+                                        className="form-input"
+                                        rows="2"
+                                        value={newPatient.address}
+                                        onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
+                                    ></textarea>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="submit" className="btn btn-primary">Register & Select</button>
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowPatientModal(false)}>Cancel</button>
                             </div>
                         </form>
                     </div>

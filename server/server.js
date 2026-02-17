@@ -48,6 +48,8 @@ const inventoryRoutes = require('./routes/inventory.routes');
 const branchRoutes = require('./routes/branch.routes');
 const userRoutes = require('./routes/user.routes');
 const backupRoutes = require('./routes/backup.routes');
+const financeRoutes = require('./routes/finance.routes');
+const purchaseRoutes = require('./routes/purchase.routes');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -61,6 +63,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/backup', backupRoutes);
+app.use('/api/finance', financeRoutes);
+app.use('/api/purchases', purchaseRoutes);
 
 // Serve uploads statically
 app.use('/uploads', express.static('uploads'));

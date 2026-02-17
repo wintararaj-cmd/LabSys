@@ -28,6 +28,9 @@ function Layout() {
                     <NavLink to="/reports" className="nav-link">
                         <span>📄</span> Reports
                     </NavLink>
+                    <NavLink to="/finance" className="nav-link">
+                        <span>💰</span> Finance
+                    </NavLink>
                     <NavLink to="/tests" className="nav-link">
                         <span>🧪</span> Test Master
                     </NavLink>
@@ -36,6 +39,9 @@ function Layout() {
                     </NavLink>
                     <NavLink to="/inventory" className="nav-link">
                         <span>📦</span> Inventory
+                    </NavLink>
+                    <NavLink to="/purchases" className="nav-link">
+                        <span>📥</span> Purchases
                     </NavLink>
                     {user?.role === 'ADMIN' && (
                         <>
