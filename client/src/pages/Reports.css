@@ -647,6 +647,19 @@
     align-items: center;
 }
 
+.sample-id-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sample-id-list-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
 .outbound-badge {
     padding: 2px 8px;
     font-size: 0.65rem;

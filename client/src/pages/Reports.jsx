@@ -363,7 +363,15 @@ const Reports = () => {
                                         </div>
                                     </td>
                                     <td>
-                                        <span className="sample-id-badge">{report.sample_id}</span>
+                                        <div className="sample-id-stack">
+                                            {report.sample_ids && report.sample_ids.length > 0 ? (
+                                                [...new Set(report.sample_ids)].map((sid, idx) => (
+                                                    <span key={idx} className="sample-id-badge">{sid}</span>
+                                                ))
+                                            ) : (
+                                                <span className="sample-id-badge">{report.sample_id || '-'}</span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="actions">
                                         <button
@@ -529,7 +537,16 @@ const Reports = () => {
                                     <strong>Status:</strong> {getStatusBadge(selectedReport.status)}
                                 </div>
                                 <div className="info-item">
-                                    <strong>Sample ID:</strong> <span className="sample-id-text">{selectedReport.sample_id}</span>
+                                    <strong>Sample ID:</strong>
+                                    <div className="sample-id-list-inline">
+                                        {selectedReport.sample_ids && selectedReport.sample_ids.length > 0 ? (
+                                            selectedReport.sample_ids.map((sid, idx) => (
+                                                <span key={idx} className="sample-id-text">{sid}{idx < selectedReport.sample_ids.length - 1 ? ', ' : ''}</span>
+                                            ))
+                                        ) : (
+                                            <span className="sample-id-text">{selectedReport.sample_id || '-'}</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

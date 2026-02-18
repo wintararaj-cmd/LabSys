@@ -70,6 +70,7 @@ const getAllReports = async (req, res) => {
                 report_ids: reportIds,
                 test_names: testNames,
                 outbound_statuses: outboundStatuses,
+                sample_ids: sampleIds,
                 outbound_status: outboundStatuses.length > 0 ? outboundStatuses[0] : 'NOT_SENT',
                 external_lab_name: externalLabNames.length > 0 ? externalLabNames[0] : null,
                 id: row.invoice_id,
@@ -295,10 +296,12 @@ const getReportById = async (req, res) => {
             [id]
         );
 
+        const sampleIds = [...new Set(reportsResult.rows.map(r => r.sample_id).filter(s => s !== null))];
         res.json({
             report: {
                 ...invoiceResult.rows[0],
-                sample_id: reportsResult.rows.length > 0 ? reportsResult.rows[0].sample_id : '-',
+                sample_id: sampleIds.length > 0 ? sampleIds[0] : '-',
+                sample_ids: sampleIds,
                 tests: reportsResult.rows
             }
         });
