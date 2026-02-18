@@ -365,8 +365,10 @@ const Reports = () => {
                                     <td>
                                         <div className="sample-id-stack">
                                             {report.sample_ids && report.sample_ids.length > 0 ? (
-                                                [...new Set(report.sample_ids)].map((sid, idx) => (
-                                                    <span key={idx} className="sample-id-badge">{sid}</span>
+                                                report.sample_ids.map((sid, idx) => (
+                                                    <div key={idx} title={`${report.test_names[idx] || 'Test'}: ${sid}`}>
+                                                        <span className="sample-id-badge">{sid}</span>
+                                                    </div>
                                                 ))
                                             ) : (
                                                 <span className="sample-id-badge">{report.sample_id || '-'}</span>
