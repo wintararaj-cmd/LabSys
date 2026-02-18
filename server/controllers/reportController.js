@@ -377,42 +377,26 @@ const updateReportResults = async (req, res) => {
  */
 const downloadReportPDF = async (req, res) => {
     try {
-        const { id } = req.params;
+        const { id } = req.params; // This is the invoice_id from the frontend
         const tenantId = req.tenantId;
         const pdfService = require('../services/pdfService');
 
-        // Get report details with all related information
-        const result = await query(
-            `SELECT r.*, t.name as test_name, t.code as test_code, 
-                   t.normal_range_male, t.normal_range_female, t.unit,
-                   p.name as patient_name, p.uhid, p.age, p.gender, p.phone,
-                   i.invoice_number, i.created_at as sample_date, i.total_amount,
-                   u1.name as technician_name, u2.name as pathologist_name,
-                   ten.name as lab_name, ten.address as lab_address, 
-                   ten.contact_phone as lab_phone, ten.contact_email as lab_email
-            FROM reports r
-            JOIN tests t ON r.test_id = t.id
-            JOIN invoices i ON r.invoice_id = i.id
-            JOIN patients p ON i.patient_id = p.id
-            JOIN tenants ten ON i.tenant_id = ten.id
-            LEFT JOIN users u1 ON r.technician_id = u1.id
-            LEFT JOIN users u2 ON r.pathologist_id = u2.id
-            WHERE r.id = $1 AND i.tenant_id = $2 AND r.status = 'VERIFIED'`,
+        // Check if there are any completed or verified reports for this invoice
+        const reportsResult = await query(
+            'SELECT COUNT(*) FROM reports r JOIN invoices i ON r.invoice_id = i.id WHERE i.id = $1 AND i.tenant_id = $2 AND r.status IN (\'COMPLETED\', \'VERIFIED\')',
             [id, tenantId]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Verified report not found' });
+        if (parseInt(reportsResult.rows[0].count) === 0) {
+            return res.status(404).json({ error: 'No completed or verified reports found for this invoice' });
         }
 
-        const reportData = result.rows[0];
-
-        // Generate PDF
-        const pdfBuffer = await pdfService.generateReportPDFFromData(reportData);
+        // Generate PDF using the invoice-based generator
+        const { pdfBuffer, fileName } = await pdfService.generateReportPDF(id, tenantId);
 
         // Set response headers
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=Report_${reportData.invoice_number}_${reportData.test_code}.pdf`);
+        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
 
         res.send(pdfBuffer);
 

@@ -46,7 +46,7 @@ const generateReportPDF = async (invoiceId, tenantId) => {
        JOIN tests t ON r.test_id = t.id
        LEFT JOIN users u1 ON r.technician_id = u1.id
        LEFT JOIN users u2 ON r.pathologist_id = u2.id
-       WHERE r.invoice_id = $1 AND r.status = 'VERIFIED'`,
+       WHERE r.invoice_id = $1 AND r.status IN ('COMPLETED', 'VERIFIED')`,
       [invoiceId]
     );
 
@@ -106,6 +106,7 @@ const generateReportPDF = async (invoiceId, tenantId) => {
       <p><strong>Invoice No:</strong> ${invoice.invoice_number}</p>
       <p><strong>Sample Date:</strong> ${new Date(invoice.created_at).toLocaleDateString()}</p>
       <p><strong>Ref. Doctor:</strong> ${invoice.doctor_name || 'Self'}</p>
+      <p><strong>Status:</strong> ${reports.every(r => r.status === 'VERIFIED') ? 'VERIFIED' : 'COMPLETED'}</p>
     </div>
   </div>
 
@@ -182,7 +183,7 @@ const generateReportPDF = async (invoiceId, tenantId) => {
       [pdfUrl, invoiceId]
     );
 
-    return { pdfUrl, fileName };
+    return { pdfUrl, fileName, pdfBuffer };
 
   } catch (error) {
     console.error('PDF generation error:', error);

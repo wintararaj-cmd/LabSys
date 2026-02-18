@@ -396,7 +396,7 @@ const Reports = () => {
                                         >
                                             🖨️ Barcode
                                         </button>
-                                        {report.status === 'VERIFIED' && (
+                                        {(report.status === 'VERIFIED' || report.status === 'COMPLETED') && (
                                             <button
                                                 onClick={() => handleDownloadPDF(report.id)}
                                                 className="btn-download"
@@ -639,7 +639,7 @@ const Reports = () => {
                                     </button>
                                 </>
                             )}
-                            {selectedReport.status === 'VERIFIED' && (
+                            {(selectedReport.status === 'VERIFIED' || selectedReport.status === 'COMPLETED') && (
                                 <button onClick={() => handleDownloadPDF(selectedReport.id)} className="btn-download-large">
                                     📄 Download PDF
                                 </button>
