@@ -65,9 +65,8 @@ async function seedTemplates() {
     try {
         console.log('Seeding Radiology Templates...');
 
-        // Get tenant ID
-        const tenantRes = await pool.query('SELECT id FROM tenants LIMIT 1');
-        const tenantId = tenantRes.rows.length > 0 ? tenantRes.rows[0].id : null;
+        // Use NULL for tenant_id to make them global templates
+        const tenantId = null;
 
         for (const t of templates) {
             await pool.query(

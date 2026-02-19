@@ -185,10 +185,12 @@ const saveReport = async (req, res) => {
 const getTemplates = async (req, res) => {
     try {
         const tenantId = req.tenantId;
+        console.log('Fetching templates for tenantId:', tenantId);
         const result = await query(
-            'SELECT * FROM report_templates WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY name',
+            'SELECT DISTINCT ON (name) * FROM report_templates WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY name, tenant_id NULLS LAST',
             [tenantId]
         );
+
         res.json(result.rows);
     } catch (error) {
         console.error('Get templates error:', error);
