@@ -51,6 +51,8 @@ const backupRoutes = require('./routes/backup.routes');
 const financeRoutes = require('./routes/finance.routes');
 const purchaseRoutes = require('./routes/purchase.routes');
 const externalLabRoutes = require('./routes/externalLabRoutes.js');
+const radiologyRoutes = require('./routes/radiologyRoutes.js');
+
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -67,6 +69,8 @@ app.use('/api/backup', backupRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/external-labs', externalLabRoutes);
+app.use('/api/radiology', radiologyRoutes);
+
 
 // Serve uploads statically
 app.use('/uploads', express.static('uploads'));

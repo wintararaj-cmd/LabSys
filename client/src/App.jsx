@@ -17,7 +17,9 @@ import FinancialReports from './pages/FinancialReports';
 import PurchaseInvoices from './pages/PurchaseInvoices';
 import ExternalLabs from './pages/ExternalLabs';
 import SampleTracking from './pages/SampleTracking';
+import Radiology from './pages/Radiology';
 import Layout from './components/Layout';
+
 
 function PrivateRoute({ children }) {
     const { user, loading } = useAuth();
@@ -56,6 +58,8 @@ function App() {
                 <Route path="purchases" element={<PurchaseInvoices />} />
                 <Route path="external-labs" element={<ExternalLabs />} />
                 <Route path="sample-tracking" element={<SampleTracking />} />
+                <Route path="radiology" element={<Radiology />} />
+
             </Route>
         </Routes>
     );

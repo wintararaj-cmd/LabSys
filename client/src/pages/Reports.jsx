@@ -389,6 +389,15 @@ const Reports = () => {
                                         >
                                             📤 Send
                                         </button>
+                                        {(report.status?.toUpperCase() === 'VERIFIED' || report.status?.toUpperCase() === 'COMPLETED') && (
+                                            <button
+                                                onClick={() => handleDownloadPDF(report.id)}
+                                                className="btn-download"
+                                                title="Download PDF Report"
+                                            >
+                                                📄 PDF
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => handlePrintBarcode(report)}
                                             className="btn-barcode"
@@ -396,14 +405,6 @@ const Reports = () => {
                                         >
                                             🖨️ Barcode
                                         </button>
-                                        {(report.status === 'VERIFIED' || report.status === 'COMPLETED') && (
-                                            <button
-                                                onClick={() => handleDownloadPDF(report.id)}
-                                                className="btn-download"
-                                            >
-                                                📄 PDF
-                                            </button>
-                                        )}
                                     </td>
                                 </tr>
                             ))

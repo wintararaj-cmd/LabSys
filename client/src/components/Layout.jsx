@@ -28,6 +28,10 @@ function Layout() {
                     <NavLink to="/reports" className="nav-link">
                         <span>📄</span> Reports
                     </NavLink>
+                    <NavLink to="/radiology" className="nav-link">
+                        <span>⚡</span> Radiology
+                    </NavLink>
+
                     <NavLink to="/finance" className="nav-link">
                         <span>💰</span> Finance
                     </NavLink>

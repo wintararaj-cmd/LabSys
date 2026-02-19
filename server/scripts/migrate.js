@@ -100,6 +100,34 @@ async function migrate() {
                     ALTER TABLE reports ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100);
                     ALTER TABLE reports ADD COLUMN IF NOT EXISTS courier_name VARCHAR(100);
                     ALTER TABLE reports ADD COLUMN IF NOT EXISTS external_cost DECIMAL(10,2) DEFAULT 0.00;
+
+                    -- Radiology Support
+                    CREATE TABLE IF NOT EXISTS report_templates (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+                        name VARCHAR(255) NOT NULL,
+                        category VARCHAR(100),
+                        file_path TEXT,
+                        is_default BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    CREATE TABLE IF NOT EXISTS report_versions (
+                        id SERIAL PRIMARY KEY,
+                        report_id INT REFERENCES reports(id) ON DELETE CASCADE,
+                        doctor_id INT REFERENCES users(id),
+                        findings TEXT,
+                        impression TEXT,
+                        docx_url TEXT,
+                        pdf_url TEXT,
+                        version_number INT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS findings TEXT;
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS impression TEXT;
+                    ALTER TABLE reports ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE;
+
                 `);
                 console.log('Incremental updates applied.');
             } catch (err) {
