@@ -377,10 +377,34 @@ const updateReportResults = async (req, res) => {
  */
 const downloadReportPDF = async (req, res) => {
     try {
-        const { id } = req.params; // This is the invoice_id from the frontend
+        const { id } = req.params;
         const tenantId = req.tenantId;
         const pdfService = require('../services/pdfService');
 
+        // 1. First, check if 'id' is a specific Report ID with a pre-generated PDF (Radiology)
+        const singleReportResult = await query(
+            `SELECT r.report_pdf_url, t.name as test_name, p.name as patient_name 
+             FROM reports r 
+             JOIN invoices i ON r.invoice_id = i.id 
+             JOIN tests t ON r.test_id = t.id
+             JOIN patients p ON i.patient_id = p.id
+             WHERE r.id = $1 AND i.tenant_id = $2`,
+            [id, tenantId]
+        );
+
+        if (singleReportResult.rows.length > 0 && singleReportResult.rows[0].report_pdf_url) {
+            const pdfRelativePath = singleReportResult.rows[0].report_pdf_url;
+            const pdfAbsolutePath = path.join(__dirname, '..', pdfRelativePath);
+
+            if (fs.existsSync(pdfAbsolutePath)) {
+                const fileName = `${singleReportResult.rows[0].patient_name}_${singleReportResult.rows[0].test_name}.pdf`.replace(/\s+/g, '_');
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+                return res.sendFile(pdfAbsolutePath);
+            }
+        }
+
+        // 2. Otherwise, treat 'id' as an Invoice ID and generate combined Pathology report
         // Check if there are any completed or verified reports for this invoice
         const reportsResult = await query(
             'SELECT COUNT(*) FROM reports r JOIN invoices i ON r.invoice_id = i.id WHERE i.id = $1 AND i.tenant_id = $2 AND r.status IN (\'COMPLETED\', \'VERIFIED\')',
@@ -388,16 +412,14 @@ const downloadReportPDF = async (req, res) => {
         );
 
         if (parseInt(reportsResult.rows[0].count) === 0) {
-            return res.status(404).json({ error: 'No completed or verified reports found for this invoice' });
+            return res.status(404).json({ error: 'No report found for this ID' });
         }
 
-        // Generate PDF using the invoice-based generator
+        // Generate PDF using the invoice-based generator (Puppeteer)
         const { pdfBuffer, fileName } = await pdfService.generateReportPDF(id, tenantId);
 
-        // Set response headers
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-
         res.send(pdfBuffer);
 
     } catch (error) {
@@ -405,6 +427,7 @@ const downloadReportPDF = async (req, res) => {
         res.status(500).json({ error: 'Failed to generate PDF', details: error.message });
     }
 }
+
 
 
 
