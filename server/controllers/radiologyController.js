@@ -182,14 +182,76 @@ const saveReport = async (req, res) => {
     }
 };
 
+// Default templates definition
+const defaultTemplates = [
+    {
+        name: 'X-RAY CHEST (PA VIEW)',
+        category: 'Radiology',
+        file_path: 'xray_chest.docx',
+        default_findings: `Lung fields are clear.\nNo focal consolidation.\nNo pleural effusion.\nCardiac size appears normal.\nBony thorax is unremarkable.`,
+        default_impression: `No radiographic evidence of active cardiopulmonary disease.`
+    },
+    {
+        name: 'USG WHOLE ABDOMEN',
+        category: 'Radiology',
+        file_path: 'usg_abdomen.docx',
+        default_findings: `LIVER: Size and echotexture are normal. No focal lesion detected.\nGALL BLADDER: Normal wall thickness. No calculi or sludge seen.\nPANCREAS: Normal in size and echotexture.\nSPLEEN: Normal size and echotexture.\nKIDNEYS: Both kidneys normal in size. No hydronephrosis or calculus.\nURINARY BLADDER: Well distended. No intraluminal lesion.`,
+        default_impression: `No significant abnormality detected.`
+    },
+    {
+        name: 'CT BRAIN (PLAIN)',
+        category: 'Radiology',
+        file_path: 'ct_brain.docx',
+        default_findings: `TECHNIQUE: Non-contrast CT scan of brain performed.\n\nNo intracranial hemorrhage.\nNo mass lesion.\nVentricular system is normal.\nNo midline shift.\nBasal cisterns are patent.\nCalvarium intact.`,
+        default_impression: `No acute intracranial pathology detected.`
+    },
+    {
+        name: 'MRI LUMBAR SPINE',
+        category: 'Radiology',
+        file_path: 'mri_spine.docx',
+        default_findings: `Vertebral bodies maintain normal height and alignment.\nDisc desiccation noted at L4-L5.\nMild posterior disc bulge at L4-L5 causing mild canal narrowing.\nNo significant nerve root compression.`,
+        default_impression: `Mild degenerative changes at L4-L5 level.`
+    },
+    {
+        name: 'ECG REPORT',
+        category: 'Radiology',
+        file_path: 'ecg_report.docx',
+        default_findings: `Heart Rate: bpm\nRhythm: Sinus rhythm\nAxis: Normal\nST-T Changes: None`,
+        default_impression: `Normal ECG.`
+    }
+];
+
 const getTemplates = async (req, res) => {
     try {
         const tenantId = req.tenantId;
         console.log('Fetching templates for tenantId:', tenantId);
-        const result = await query(
-            'SELECT DISTINCT ON (name) * FROM report_templates WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY name, tenant_id NULLS LAST',
+
+        // Simple query to get all applicable templates
+        let result = await query(
+            'SELECT * FROM report_templates WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY name',
             [tenantId]
         );
+
+
+        // Lazy Seeding: If no templates found, insert defaults
+        if (result.rows.length === 0) {
+            console.log('No templates found. Auto-seeding defaults...');
+            for (const t of defaultTemplates) {
+                await query(
+                    `INSERT INTO report_templates (tenant_id, name, category, file_path, default_findings, default_impression)
+                     VALUES (NULL, $1, $2, $3, $4, $5)
+                     ON CONFLICT DO NOTHING`,
+                    [t.name, t.category, t.file_path, t.default_findings, t.default_impression]
+                );
+            }
+
+            // Re-fetch
+            result = await query(
+                'SELECT * FROM report_templates WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY name',
+                [tenantId]
+            );
+
+        }
 
         res.json(result.rows);
     } catch (error) {
@@ -197,6 +259,7 @@ const getTemplates = async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch templates' });
     }
 };
+
 
 module.exports = {
     getRadiologyReports,
