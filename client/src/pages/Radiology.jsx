@@ -63,7 +63,8 @@ const Radiology = () => {
             await api.put(`/radiology/${selectedReport.id}`, {
                 findings,
                 impression,
-                isFinal
+                isFinal,
+                templateId: selectedTemplate
             });
             alert(isFinal ? 'Report finalized and locked!' : 'Report saved as draft.');
             setShowEditModal(false);
@@ -78,13 +79,17 @@ const Radiology = () => {
     const handleLoadTemplate = (templateId) => {
         const template = templates.find(t => t.id === parseInt(templateId));
         if (template) {
-            // In a real app, templates would have content. 
-            // For now, we'll just set some sample structure if findings is empty.
-            if (!findings) {
-                setFindings('<h3>CLINICAL HISTORY:</h3><p>...</p><h3>PROCEDURE:</h3><p>...</p><h3>OBSERVATIONS:</h3><p>...</p>');
+            // Confirm if they want to overwrite existing content
+            if (findings || impression) {
+                if (!window.confirm('This will overwrite current editor content with template defaults. Continue?')) {
+                    return;
+                }
             }
+            setFindings(template.default_findings || '');
+            setImpression(template.default_impression || '');
         }
     };
+
 
     const handleDownloadPDF = async (reportId) => {
         try {
@@ -190,8 +195,8 @@ const Radiology = () => {
                                 }}>
                                     <option value="">-- Choose Template --</option>
                                     {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    <option value="default">Standard Radiology Template</option>
                                 </select>
+
                             </div>
 
                             <div className="editor-section">

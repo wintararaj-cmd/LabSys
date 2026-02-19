@@ -128,6 +128,10 @@ async function migrate() {
                     ALTER TABLE reports ADD COLUMN IF NOT EXISTS impression TEXT;
                     ALTER TABLE reports ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE;
 
+                    ALTER TABLE report_templates ADD COLUMN IF NOT EXISTS default_findings TEXT;
+                    ALTER TABLE report_templates ADD COLUMN IF NOT EXISTS default_impression TEXT;
+
+
                 `);
                 console.log('Incremental updates applied.');
             } catch (err) {

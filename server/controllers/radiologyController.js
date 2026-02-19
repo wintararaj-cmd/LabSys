@@ -71,15 +71,28 @@ const getReportDetails = async (req, res) => {
 const saveReport = async (req, res) => {
     try {
         const { id } = req.params;
-        const { findings, impression, isFinal } = req.body;
+        const { findings, impression, isFinal, templateId } = req.body;
         const doctorId = req.user.userId;
         const tenantId = req.tenantId;
+
+        // Get template info if provided
+        let templateFileName = 'radiology_generic.docx';
+        if (templateId) {
+            const templateRes = await query(
+                'SELECT file_path FROM report_templates WHERE id = $1 AND (tenant_id = $2 OR tenant_id IS NULL)',
+                [templateId, tenantId]
+            );
+            if (templateRes.rows.length > 0) {
+                templateFileName = templateRes.rows[0].file_path;
+            }
+        }
 
         // Check if locked
         const checkResult = await query(
             'SELECT is_locked FROM reports r JOIN invoices i ON r.invoice_id = i.id WHERE r.id = $1 AND i.tenant_id = $2',
             [id, tenantId]
         );
+
 
         if (checkResult.rows.length === 0) return res.status(404).json({ error: 'Report not found' });
         if (checkResult.rows[0].is_locked) return res.status(403).json({ error: 'Report is locked and cannot be edited' });
@@ -111,20 +124,33 @@ const saveReport = async (req, res) => {
             [doctorId, id]
         );
 
+        const cleanHtml = (html) => {
+            if (!html) return '';
+            return html
+                .replace(/<\/p>/g, '\n')
+                .replace(/<br\s*\/?>/g, '\n')
+                .replace(/<[^>]+>/g, '')
+                .trim();
+        };
+
         const fullData = fullDataResult.rows[0];
         const templateData = {
             patient_name: fullData.patient_name,
             age: fullData.age,
             gender: fullData.gender,
-            doctor_name: fullData.doctor_name || 'Self',
+            patient_id: fullData.patient_uhid, // UHID
+            ref_doctor: fullData.doctor_name || 'Self',
             report_date: new Date().toLocaleDateString(),
-            findings: fullData.findings,
-            impression: fullData.impression,
+            findings: cleanHtml(findings),
+            impression: cleanHtml(impression),
             radiologist_name: fullData.radiologist_name || 'Doctor',
+            qualification: 'M.D. Radiology', // Default or fetch from user profile
             report_id: id
         };
 
-        const files = await radiologyService.generateReport(templateData);
+
+
+        const files = await radiologyService.generateReport(templateData, templateFileName);
 
         // Save version
         const versionResult = await query(
