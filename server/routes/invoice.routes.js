@@ -8,10 +8,11 @@ router.use(verifyToken);
 router.use(tenantGuard);
 
 // Invoice routes
-router.post('/', checkRole(['ADMIN', 'RECEPTIONIST']), invoiceController.createInvoice);
+router.post('/', checkRole(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT']), invoiceController.createInvoice);
 router.get('/', invoiceController.getInvoices);
 router.get('/:id', invoiceController.getInvoiceById);
-router.put('/:id/payment', checkRole(['ADMIN', 'RECEPTIONIST']), invoiceController.updatePayment);
+router.put('/:id/payment', checkRole(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT']), invoiceController.updatePayment);
+router.post('/:id/refund', checkRole(['ADMIN', 'ACCOUNTANT']), invoiceController.processRefund);
 router.get('/:id/pdf', invoiceController.downloadInvoicePDF);
 
 module.exports = router;

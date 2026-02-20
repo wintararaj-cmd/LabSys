@@ -131,6 +131,73 @@ async function migrate() {
                     ALTER TABLE report_templates ADD COLUMN IF NOT EXISTS default_findings TEXT;
                     ALTER TABLE report_templates ADD COLUMN IF NOT EXISTS default_impression TEXT;
 
+                    -- Update User Roles Constraint
+                    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+                    ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('ADMIN', 'DOCTOR', 'TECHNICIAN', 'RECEPTIONIST', 'RADIOLOGIST', 'ACCOUNTANT'));
+
+                    ALTER TABLE tests ADD COLUMN IF NOT EXISTS is_profile BOOLEAN DEFAULT FALSE;
+
+                    CREATE TABLE IF NOT EXISTS test_profile_items (
+                        id SERIAL PRIMARY KEY,
+                        profile_id INT REFERENCES tests(id) ON DELETE CASCADE,
+                        test_id INT REFERENCES tests(id) ON DELETE CASCADE,
+                        sort_order INT DEFAULT 0
+                    );
+
+                    CREATE TABLE IF NOT EXISTS audit_logs (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+                        user_id INT REFERENCES users(id) ON DELETE SET NULL,
+                        action VARCHAR(50) NOT NULL,
+                        entity_type VARCHAR(50) NOT NULL,
+                        entity_id VARCHAR(50),
+                        old_values JSONB,
+                        new_values JSONB,
+                        details TEXT,
+                        ip_address VARCHAR(50),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    -- Refunds support
+                    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS refund_amount DECIMAL(10,2) DEFAULT 0.00;
+                    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS refund_note TEXT;
+                    ALTER TABLE invoices DROP CONSTRAINT IF EXISTS invoices_payment_status_check;
+                    ALTER TABLE invoices ADD CONSTRAINT invoices_payment_status_check CHECK (payment_status IN ('PAID', 'PARTIAL', 'PENDING', 'REFUNDED'));
+
+                    -- Notification Settings
+                    CREATE TABLE IF NOT EXISTS notification_settings (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE UNIQUE,
+                        sms_enabled BOOLEAN DEFAULT FALSE,
+                        whatsapp_enabled BOOLEAN DEFAULT FALSE,
+                        provider VARCHAR(50) DEFAULT 'FAST2SMS',
+                        api_key TEXT,
+                        sender_id VARCHAR(20),
+                        whatsapp_api_url TEXT,
+                        whatsapp_token TEXT,
+                        notify_on_report_ready BOOLEAN DEFAULT TRUE,
+                        notify_on_report_verified BOOLEAN DEFAULT TRUE,
+                        notify_on_invoice_created BOOLEAN DEFAULT TRUE,
+                        report_ready_template TEXT DEFAULT 'Dear {name}, your report for {test} is ready. Download: {link}',
+                        report_verified_template TEXT DEFAULT 'Dear {name}, your report has been verified. Invoice: {invoice}. Download: {link}',
+                        invoice_template TEXT DEFAULT 'Dear {name}, invoice {invoice} of Rs.{amount} created. Balance: Rs.{balance}',
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    -- Notification Logs
+                    CREATE TABLE IF NOT EXISTS notification_logs (
+                        id SERIAL PRIMARY KEY,
+                        tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+                        patient_id INT REFERENCES patients(id) ON DELETE SET NULL,
+                        invoice_id INT REFERENCES invoices(id) ON DELETE SET NULL,
+                        channel VARCHAR(20) NOT NULL,
+                        phone VARCHAR(20),
+                        message TEXT,
+                        status VARCHAR(20) DEFAULT 'PENDING',
+                        provider_response TEXT,
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
 
                 `);
                 console.log('Incremental updates applied.');

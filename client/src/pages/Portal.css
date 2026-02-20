@@ -1,0 +1,107 @@
+.portal-container {
+    min-height: 100vh;
+    background-color: #f4f7f6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 50px 20px;
+    font-family: 'Inter', sans-serif;
+}
+
+.portal-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.portal-header h2 {
+    color: #2c3e50;
+    font-size: 28px;
+    margin-bottom: 5px;
+}
+
+.portal-header p {
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.portal-card {
+    background: white;
+    width: 100%;
+    max-width: 450px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    padding: 30px;
+}
+
+.portal-search-form .form-label {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #efefef;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.summary-header h3 {
+    color: #2c3e50;
+    font-size: 18px;
+    margin: 0;
+}
+
+.summary-details p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #444;
+}
+
+.test-list {
+    margin-top: 15px;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+}
+
+.test-list h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #333;
+}
+
+.test-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.test-list li {
+    font-size: 13px;
+    padding: 5px 0;
+    border-bottom: 1px dotted #ccc;
+    color: #555;
+    display: flex;
+    justify-content: space-between;
+}
+
+.test-list li:last-child {
+    border-bottom: none;
+}
+
+.download-form {
+    background: #eaf2f8;
+    padding: 20px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.download-form h4 {
+    margin: 0 0 5px 0;
+    color: #2980b9;
+}

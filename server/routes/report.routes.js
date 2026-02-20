@@ -17,13 +17,13 @@ router.get('/:id', reportController.getReportById);
 router.get('/pending', reportController.getPendingReports);
 
 // Update test result (single)
-router.put('/:id/result', checkRole(['ADMIN', 'TECHNICIAN']), reportController.updateTestResult);
+router.put('/:id/result', checkRole(['ADMIN', 'TECHNICIAN', 'RADIOLOGIST']), reportController.updateTestResult);
 
 // Update multiple results (bulk)
-router.put('/:id/results', checkRole(['ADMIN', 'TECHNICIAN']), reportController.updateReportResults);
+router.put('/:id/results', checkRole(['ADMIN', 'TECHNICIAN', 'RADIOLOGIST']), reportController.updateReportResults);
 
 // Verify report
-router.put('/:id/verify', checkRole(['ADMIN', 'DOCTOR']), reportController.verifyReport);
+router.put('/:id/verify', checkRole(['ADMIN', 'DOCTOR', 'RADIOLOGIST']), reportController.verifyReport);
 
 // Get reports by invoice
 router.get('/invoice/:invoiceId', reportController.getReportsByInvoice);
@@ -32,7 +32,7 @@ router.get('/invoice/:invoiceId', reportController.getReportsByInvoice);
 router.get('/:id/pdf', reportController.downloadReportPDF);
 
 // Update outbound status
-router.put('/:id/outbound-status', checkRole(['ADMIN', 'TECHNICIAN']), reportController.updateOutboundStatus);
+router.put('/:id/outbound-status', checkRole(['ADMIN', 'TECHNICIAN', 'RADIOLOGIST']), reportController.updateOutboundStatus);
 
 // Search by sample ID
 router.get('/sample/:sampleId', reportController.getReportBySampleId);

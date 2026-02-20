@@ -16,6 +16,7 @@ DROP TABLE IF EXISTS doctor_payouts CASCADE;
 DROP TABLE IF EXISTS purchase_invoices CASCADE;
 DROP TABLE IF EXISTS purchase_items CASCADE;
 DROP TABLE IF EXISTS external_labs CASCADE;
+DROP TABLE IF EXISTS test_profile_items CASCADE;
 
 -- 1. Tenants (Labs)
 CREATE TABLE tenants (
@@ -50,7 +51,7 @@ CREATE TABLE users (
     name VARCHAR(100),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) CHECK (role IN ('ADMIN', 'DOCTOR', 'TECHNICIAN', 'RECEPTIONIST')),
+    role VARCHAR(20) CHECK (role IN ('ADMIN', 'DOCTOR', 'TECHNICIAN', 'RECEPTIONIST', 'RADIOLOGIST', 'ACCOUNTANT')),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -94,7 +95,15 @@ CREATE TABLE tests (
     normal_range_male TEXT, -- JSON or Text description
     normal_range_female TEXT,
     unit VARCHAR(20),
-    sample_type VARCHAR(50) -- Blood, Urine, etc.
+    sample_type VARCHAR(50), -- Blood, Urine, etc.
+    is_profile BOOLEAN DEFAULT FALSE -- Support for grouped tests/panels
+);
+
+CREATE TABLE test_profile_items (
+    id SERIAL PRIMARY KEY,
+    profile_id INT REFERENCES tests(id) ON DELETE CASCADE,
+    test_id INT REFERENCES tests(id) ON DELETE CASCADE,
+    sort_order INT DEFAULT 0
 );
 
 -- 7. Invoices (Billing)
@@ -111,7 +120,9 @@ CREATE TABLE invoices (
     net_amount DECIMAL(10,2),
     paid_amount DECIMAL(10,2) DEFAULT 0.00,
     balance_amount DECIMAL(10,2) DEFAULT 0.00,
-    payment_status VARCHAR(20) CHECK (payment_status IN ('PAID', 'PARTIAL', 'PENDING')),
+    refund_amount DECIMAL(10,2) DEFAULT 0.00,
+    refund_note TEXT,
+    payment_status VARCHAR(20) CHECK (payment_status IN ('PAID', 'PARTIAL', 'PENDING', 'REFUNDED')),
     payment_mode VARCHAR(20), -- CASH, CARD, ONLINE, UPI
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -233,4 +244,54 @@ CREATE TABLE purchase_items (
     batch_number VARCHAR(50),
     expiry_date DATE,
     total_price DECIMAL(10,2)
+);
+
+-- 16. Audit Logs (System Activity)
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(50) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id VARCHAR(50),
+    old_values JSONB,
+    new_values JSONB,
+    details TEXT,
+    ip_address VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 17. Notification Settings (Per Tenant)
+CREATE TABLE notification_settings (
+    id SERIAL PRIMARY KEY,
+    tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE UNIQUE,
+    sms_enabled BOOLEAN DEFAULT FALSE,
+    whatsapp_enabled BOOLEAN DEFAULT FALSE,
+    provider VARCHAR(50) DEFAULT 'FAST2SMS',
+    api_key TEXT,
+    sender_id VARCHAR(20),
+    whatsapp_api_url TEXT,
+    whatsapp_token TEXT,
+    notify_on_report_ready BOOLEAN DEFAULT TRUE,
+    notify_on_report_verified BOOLEAN DEFAULT TRUE,
+    notify_on_invoice_created BOOLEAN DEFAULT TRUE,
+    report_ready_template TEXT DEFAULT 'Dear {name}, your report for {test} is ready. Download: {link}',
+    report_verified_template TEXT DEFAULT 'Dear {name}, your report has been verified. Invoice: {invoice}. Download: {link}',
+    invoice_template TEXT DEFAULT 'Dear {name}, invoice {invoice} of Rs.{amount} created. Balance: Rs.{balance}',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 18. Notification Logs
+CREATE TABLE notification_logs (
+    id SERIAL PRIMARY KEY,
+    tenant_id INT REFERENCES tenants(id) ON DELETE CASCADE,
+    patient_id INT REFERENCES patients(id) ON DELETE SET NULL,
+    invoice_id INT REFERENCES invoices(id) ON DELETE SET NULL,
+    channel VARCHAR(20) NOT NULL,
+    phone VARCHAR(20),
+    message TEXT,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    provider_response TEXT,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

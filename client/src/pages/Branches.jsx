@@ -200,7 +200,9 @@ const Branches = () => {
                                 <select value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })}>
                                     <option value="TECHNICIAN">Technician</option>
                                     <option value="RECEPTIONIST">Receptionist</option>
-                                    <option value="DOCTOR">Pathologist (Doctor)</option>
+                                    <option value="RADIOLOGIST">Radiologist</option>
+                                    <option value="ACCOUNTANT">Accountant</option>
+                                    <option value="DOCTOR">Doctor</option>
                                     <option value="ADMIN">Admin</option>
                                 </select>
                             </div>

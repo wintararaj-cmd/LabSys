@@ -52,10 +52,13 @@ const financeRoutes = require('./routes/finance.routes');
 const purchaseRoutes = require('./routes/purchase.routes');
 const externalLabRoutes = require('./routes/externalLabRoutes.js');
 const radiologyRoutes = require('./routes/radiologyRoutes.js');
-
+const publicRoutes = require('./routes/public.routes.js');
+const auditRoutes = require('./routes/audit.routes.js');
+const notificationRoutes = require('./routes/notification.routes.js');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/public', publicRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -70,6 +73,8 @@ app.use('/api/finance', financeRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/external-labs', externalLabRoutes);
 app.use('/api/radiology', radiologyRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 // Serve uploads statically

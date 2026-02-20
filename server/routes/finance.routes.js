@@ -6,7 +6,7 @@ const { verifyToken, tenantGuard, checkRole } = require('../middlewares/auth');
 // All routes require authentication and admin/manager role (simplified to ADMIN for now)
 router.use(verifyToken);
 router.use(tenantGuard);
-router.use(checkRole(['ADMIN']));
+router.use(checkRole(['ADMIN', 'ACCOUNTANT']));
 
 // GST Report
 router.get('/gst', financeController.getGSTReport);

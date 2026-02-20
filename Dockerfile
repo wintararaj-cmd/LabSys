@@ -37,5 +37,7 @@ COPY --from=builder /app/dist ./public
 EXPOSE 5000
 
 # Start script
-CMD ["sh", "-c", "node scripts/migrate.js && node scripts/seed.js && node scripts/seedRadiology.js && node server.js"]
+# Start script
+CMD ["sh", "-c", "node scripts/migrate.js && node scripts/seed.js && node scripts/seedRadiology.js && node scripts/generateTemplate.js && node scripts/seedTemplates.js && node server.js"]
+
 

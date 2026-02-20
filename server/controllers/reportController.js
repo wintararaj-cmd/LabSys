@@ -1,4 +1,6 @@
 const { query } = require('../config/db');
+const { logAuditEvent } = require('../services/auditService');
+const { notifyReportReady, notifyReportVerified } = require('../services/notificationService');
 
 /**
  * Get all reports with optional filtering
@@ -185,6 +187,36 @@ const updateTestResult = async (req, res) => {
             report: result.rows[0],
         });
 
+        // Fire audit log after sending response
+        logAuditEvent({
+            tenantId,
+            userId: technicianId,
+            action: 'UPDATE',
+            entityType: 'REPORT',
+            entityId: id,
+            newValues: { resultValue, isAbnormal },
+            details: `Updated test result for report ${id}`
+        });
+
+        // Notify patient: report is ready
+        const patientInfo = await query(
+            `SELECT p.name, p.phone, p.id as patient_id, i.id as invoice_id, i.invoice_number, t.name as test_name
+             FROM reports r
+             JOIN invoices i ON r.invoice_id = i.id
+             JOIN patients p ON i.patient_id = p.id
+             JOIN tests t ON r.test_id = t.id
+             WHERE r.id = $1`, [id]
+        );
+        if (patientInfo.rows.length > 0) {
+            const pi = patientInfo.rows[0];
+            const link = `${process.env.CLIENT_URL || 'https://app.labsys.in'}/portal?inv=${pi.invoice_id}`;
+            notifyReportReady(tenantId, {
+                patientName: pi.name, patientPhone: pi.phone,
+                patientId: pi.patient_id, invoiceId: pi.invoice_id,
+                testName: pi.test_name, invoiceNumber: pi.invoice_number, portalLink: link
+            }).catch(err => console.error('[Notify] report ready:', err.message));
+        }
+
     } catch (error) {
         console.error('Update test result error:', error);
         res.status(500).json({ error: 'Failed to update test result' });
@@ -221,6 +253,33 @@ const verifyReport = async (req, res) => {
             message: 'Report verified successfully',
             report: result.rows[0],
         });
+
+        logAuditEvent({
+            tenantId,
+            userId: pathologistId,
+            action: 'VERIFY',
+            entityType: 'REPORT',
+            entityId: id,
+            details: `Verified report ${id}`
+        });
+
+        // Notify patient: report is verified and ready for download
+        const patientInfo2 = await query(
+            `SELECT p.name, p.phone, p.id as patient_id, i.id as invoice_id, i.invoice_number
+             FROM reports r
+             JOIN invoices i ON r.invoice_id = i.id
+             JOIN patients p ON i.patient_id = p.id
+             WHERE r.id = $1`, [id]
+        );
+        if (patientInfo2.rows.length > 0) {
+            const pi = patientInfo2.rows[0];
+            const link = `${process.env.CLIENT_URL || 'https://app.labsys.in'}/portal?inv=${pi.invoice_id}`;
+            notifyReportVerified(tenantId, {
+                patientName: pi.name, patientPhone: pi.phone,
+                patientId: pi.patient_id, invoiceId: pi.invoice_id,
+                invoiceNumber: pi.invoice_number, portalLink: link
+            }).catch(err => console.error('[Notify] report verified:', err.message));
+        }
 
     } catch (error) {
         console.error('Verify report error:', error);

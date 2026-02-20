@@ -63,6 +63,7 @@ export const invoiceAPI = {
     getById: (id) => api.get(`/invoices/${id}`),
     create: (data) => api.post('/invoices', data),
     updatePayment: (id, data) => api.put(`/invoices/${id}/payment`, data),
+    processRefund: (id, data) => api.post(`/invoices/${id}/refund`, data),
     downloadPDF: (id) => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
 };
 
@@ -134,6 +135,14 @@ export const purchaseAPI = {
     create: (data) => api.post('/purchases', data),
     update: (id, data) => api.put(`/purchases/${id}`, data),
     delete: (id) => api.delete(`/purchases/${id}`),
+};
+
+// Notifications API
+export const notificationAPI = {
+    getSettings: () => api.get('/notifications/settings'),
+    saveSettings: (data) => api.post('/notifications/settings', data),
+    testSend: (data) => api.post('/notifications/test-send', data),
+    getLogs: (params) => api.get('/notifications/logs', { params }),
 };
 
 export default api;

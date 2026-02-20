@@ -20,6 +20,8 @@ import SampleTracking from './pages/SampleTracking';
 import Radiology from './pages/Radiology';
 import Layout from './components/Layout';
 
+import Portal from './pages/Portal';
+import AuditLog from './pages/AuditLog';
 
 function PrivateRoute({ children }) {
     const { user, loading } = useAuth();
@@ -39,6 +41,8 @@ function App() {
             <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
             <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
             <Route path="/promote" element={<Brochure />} />
+            <Route path="/portal" element={<Portal />} />
+            <Route path="/verify/:id" element={<Portal />} />
 
             <Route path="/" element={
                 <PrivateRoute>
@@ -59,6 +63,7 @@ function App() {
                 <Route path="external-labs" element={<ExternalLabs />} />
                 <Route path="sample-tracking" element={<SampleTracking />} />
                 <Route path="radiology" element={<Radiology />} />
+                <Route path="audit-log" element={<AuditLog />} />
 
             </Route>
         </Routes>

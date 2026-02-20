@@ -1,5 +1,7 @@
 const { query } = require('../config/db');
 const { getAccountingYearInfo } = require('../utils/dateHelper');
+const { logAuditEvent } = require('../services/auditService');
+const { notifyInvoiceCreated } = require('../services/notificationService');
 
 /**
  * Generate unique invoice number based on Accounting Year
@@ -118,6 +120,28 @@ const createInvoice = async (req, res) => {
             }
 
             await client.query('COMMIT');
+
+            await logAuditEvent({
+                tenantId,
+                userId: req.user?.userId,
+                action: 'CREATE',
+                entityType: 'INVOICE',
+                entityId: invoiceId,
+                details: `Created invoice ${invoiceNumber} for patient ID ${patientId}`
+            });
+
+            // Fire-and-forget notification (non-blocking)
+            const patientRes = await query('SELECT name, phone FROM patients WHERE id = $1', [patientId]);
+            if (patientRes.rows.length > 0) {
+                const { name, phone } = patientRes.rows[0];
+                notifyInvoiceCreated(tenantId, {
+                    patientName: name, patientPhone: phone,
+                    patientId, invoiceId,
+                    invoiceNumber,
+                    amount: netAmount,
+                    balance: balanceAmount
+                }).catch(err => console.error('[Notify] invoice created:', err.message));
+            }
 
             res.status(201).json({
                 message: 'Invoice created successfully',
@@ -276,9 +300,21 @@ const updatePayment = async (req, res) => {
         }
 
         const invoice = invoiceResult.rows[0];
+
+        if (invoice.payment_status === 'REFUNDED') {
+            return res.status(400).json({ error: 'Cannot update payment for a fully refunded invoice.' });
+        }
+
         const newPaidAmount = parseFloat(invoice.paid_amount) + parseFloat(paidAmount);
-        const newBalanceAmount = parseFloat(invoice.net_amount) - newPaidAmount;
-        const newPaymentStatus = newBalanceAmount === 0 ? 'PAID' : (newPaidAmount > 0 ? 'PARTIAL' : 'PENDING');
+        const netAfterRefund = parseFloat(invoice.net_amount) - parseFloat(invoice.refund_amount || 0);
+        const newBalanceAmount = netAfterRefund - newPaidAmount;
+
+        let newPaymentStatus = 'PENDING';
+        if (newBalanceAmount <= 0) {
+            newPaymentStatus = 'PAID';
+        } else if (newPaidAmount > 0) {
+            newPaymentStatus = 'PARTIAL';
+        }
 
         // Update invoice
         const result = await query(
@@ -289,6 +325,16 @@ const updatePayment = async (req, res) => {
             [newPaidAmount, newBalanceAmount, newPaymentStatus, paymentMode, id, tenantId]
         );
 
+        await logAuditEvent({
+            tenantId,
+            userId: req.user?.userId,
+            action: 'UPDATE',
+            entityType: 'INVOICE',
+            entityId: id,
+            newValues: { paidAmount, paymentMode, newPaymentStatus },
+            details: `Updated payment for invoice ID ${id}`
+        });
+
         res.json({
             message: 'Payment updated successfully',
             invoice: result.rows[0],
@@ -297,6 +343,80 @@ const updatePayment = async (req, res) => {
     } catch (error) {
         console.error('Update payment error:', error);
         res.status(500).json({ error: 'Failed to update payment' });
+    }
+};
+
+/**
+ * Process Refund
+ */
+const processRefund = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { refundAmount, refundNote } = req.body;
+        const tenantId = req.tenantId;
+
+        // Validation
+        if (!refundAmount || refundAmount <= 0) {
+            return res.status(400).json({ error: 'Valid refund amount is required.' });
+        }
+
+        const invoiceResult = await query(
+            'SELECT * FROM invoices WHERE id = $1 AND tenant_id = $2',
+            [id, tenantId]
+        );
+
+        if (invoiceResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Invoice not found' });
+        }
+
+        const invoice = invoiceResult.rows[0];
+
+        // Ensure you don't refund more than what is paid
+        const currentPaid = parseFloat(invoice.paid_amount);
+        const currentRefunded = parseFloat(invoice.refund_amount || 0);
+
+        if (parseFloat(refundAmount) > (currentPaid - currentRefunded)) {
+            return res.status(400).json({ error: 'Refund amount cannot exceed the net paid amount.' });
+        }
+
+        const newRefundTotal = currentRefunded + parseFloat(refundAmount);
+        const netAfterRefund = parseFloat(invoice.net_amount) - newRefundTotal;
+        const newBalanceAmount = netAfterRefund - currentPaid;
+
+        let newPaymentStatus = 'REFUNDED'; // Assume full refund cancels it out
+        if (newRefundTotal < parseFloat(invoice.net_amount)) {
+            // It's a partial refund
+            if (newBalanceAmount <= 0) newPaymentStatus = 'PAID';
+            else if (currentPaid > 0) newPaymentStatus = 'PARTIAL';
+            else newPaymentStatus = 'PENDING';
+        }
+
+        const result = await query(
+            `UPDATE invoices 
+             SET refund_amount = $1, refund_note = $2, balance_amount = $3, payment_status = $4
+             WHERE id = $5 AND tenant_id = $6
+             RETURNING *`,
+            [newRefundTotal, refundNote || '', newBalanceAmount, newPaymentStatus, id, tenantId]
+        );
+
+        await logAuditEvent({
+            tenantId,
+            userId: req.user?.userId,
+            action: 'REFUND',
+            entityType: 'INVOICE',
+            entityId: id,
+            newValues: { refundAmount, refundNote, newPaymentStatus },
+            details: `Processed refund of ₹${parseFloat(refundAmount).toFixed(2)} for invoice ID ${id}. Note: ${refundNote}`
+        });
+
+        res.json({
+            message: 'Refund processed successfully',
+            invoice: result.rows[0],
+        });
+
+    } catch (error) {
+        console.error('Process refund error:', error);
+        res.status(500).json({ error: 'Failed to process refund' });
     }
 };
 
@@ -362,5 +482,6 @@ module.exports = {
     getInvoices,
     getInvoiceById,
     updatePayment,
+    processRefund,
     downloadInvoicePDF
 };

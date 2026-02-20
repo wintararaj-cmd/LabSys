@@ -234,6 +234,15 @@ function Billing() {
         balanceAmount: 0
     });
 
+    // Refund Modal State
+    const [showRefundModal, setShowRefundModal] = useState(false);
+    const [refundData, setRefundData] = useState({
+        invoiceId: null,
+        refundAmount: 0,
+        refundNote: '',
+        maxRefundable: 0
+    });
+
     const handleViewInvoice = async (invoiceId) => {
         try {
             setLoading(true);
@@ -274,6 +283,33 @@ function Billing() {
         } catch (err) {
             console.error('Failed to update payment:', err);
             alert('Failed to update payment');
+        }
+    };
+
+    const handleOpenRefundModal = (invoice) => {
+        const refundable = parseFloat(invoice.paid_amount) - parseFloat(invoice.refund_amount || 0);
+        setRefundData({
+            invoiceId: invoice.id,
+            refundAmount: refundable > 0 ? refundable : 0,
+            refundNote: '',
+            maxRefundable: refundable
+        });
+        setShowRefundModal(true);
+    };
+
+    const handleProcessRefund = async (e) => {
+        e.preventDefault();
+        try {
+            await invoiceAPI.processRefund(refundData.invoiceId, {
+                refundAmount: refundData.refundAmount,
+                refundNote: refundData.refundNote
+            });
+            alert('Refund processed successfully');
+            setShowRefundModal(false);
+            loadData();
+        } catch (err) {
+            console.error('Failed to process refund:', err);
+            alert('Failed to process refund: ' + (err.response?.data?.error || err.message));
         }
     };
 
@@ -591,6 +627,11 @@ function Billing() {
                                             <span className={`badge ${getPaymentStatusBadge(invoice.payment_status)}`}>
                                                 {invoice.payment_status}
                                             </span>
+                                            {parseFloat(invoice.refund_amount) > 0 && (
+                                                <div style={{ fontSize: '10px', color: '#e74c3c', marginTop: '4px' }}>
+                                                    Refunded: ₹{parseFloat(invoice.refund_amount).toFixed(2)}
+                                                </div>
+                                            )}
                                         </td>
                                         <td>
                                             <button
@@ -616,6 +657,15 @@ function Billing() {
                                                     💰
                                                 </button>
                                             )}
+                                            {(parseFloat(invoice.paid_amount) - parseFloat(invoice.refund_amount || 0)) > 0 && invoice.payment_status !== 'REFUNDED' && (
+                                                <button
+                                                    className="btn-icon text-danger"
+                                                    title="Process Refund"
+                                                    onClick={() => handleOpenRefundModal(invoice)}
+                                                >
+                                                    ↩️
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -638,7 +688,10 @@ function Billing() {
                                 <div>
                                     <p><strong>Invoice #:</strong> {selectedInvoice.invoice_number}</p>
                                     <p><strong>Date:</strong> {new Date(selectedInvoice.created_at).toLocaleDateString()}</p>
-                                    <p><strong>Status:</strong> <span className={`badge ${getPaymentStatusBadge(selectedInvoice.payment_status)}`}>{selectedInvoice.payment_status}</span></p>
+                                    <p>
+                                        <strong>Status:</strong>
+                                        <span className={`badge ${getPaymentStatusBadge(selectedInvoice.payment_status)}`}>{selectedInvoice.payment_status}</span>
+                                    </p>
                                     <p><strong>Payment Mode:</strong> {selectedInvoice.payment_mode}</p>
                                 </div>
                                 <div>
@@ -694,6 +747,12 @@ function Billing() {
                                     <span>Balance:</span>
                                     <span>₹{parseFloat(selectedInvoice.balance_amount).toFixed(2)}</span>
                                 </div>
+                                {parseFloat(selectedInvoice.refund_amount) > 0 && (
+                                    <div className="total-row" style={{ color: '#e74c3c' }}>
+                                        <span>Refunded:</span>
+                                        <span>-₹{parseFloat(selectedInvoice.refund_amount).toFixed(2)}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="modal-footer">
@@ -764,6 +823,63 @@ function Billing() {
                                     type="button"
                                     className="btn btn-secondary"
                                     onClick={() => setShowPaymentModal(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Refund Modal */}
+            {showRefundModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content small-modal">
+                        <div className="modal-header">
+                            <h3>Process Refund</h3>
+                            <button className="close-btn" onClick={() => setShowRefundModal(false)}>✕</button>
+                        </div>
+                        <form onSubmit={handleProcessRefund}>
+                            <div className="modal-body">
+                                <div className="payment-info mb-3">
+                                    <p style={{ color: '#e74c3c' }}>
+                                        <strong>Max Refundable:</strong> ₹{parseFloat(refundData.maxRefundable).toFixed(2)}
+                                    </p>
+                                </div>
+                                <div className="form-group mb-3">
+                                    <label className="form-label">Refund Amount</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={refundData.refundAmount}
+                                        onChange={(e) => setRefundData({ ...refundData, refundAmount: e.target.value })}
+                                        max={refundData.maxRefundable}
+                                        min="0.01"
+                                        step="0.01"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group mb-3">
+                                    <label className="form-label">Refund Reason / Note</label>
+                                    <textarea
+                                        className="form-input"
+                                        rows="3"
+                                        value={refundData.refundNote}
+                                        onChange={(e) => setRefundData({ ...refundData, refundNote: e.target.value })}
+                                        placeholder="E.g. Test cancelled by patient"
+                                        required
+                                    ></textarea>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="submit" className="btn btn-danger">
+                                    Confirm Refund
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowRefundModal(false)}
                                 >
                                     Cancel
                                 </button>

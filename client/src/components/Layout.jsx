@@ -61,6 +61,9 @@ function Layout() {
                             <NavLink to="/settings" className="nav-link">
                                 <span>⚙️</span> Settings
                             </NavLink>
+                            <NavLink to="/audit-log" className="nav-link">
+                                <span>🔍</span> Audit Trail
+                            </NavLink>
                         </>
                     )}
                 </nav>

@@ -1,4 +1,5 @@
 const { query } = require('../config/db');
+const { logAuditEvent } = require('../services/auditService');
 
 /**
  * Get all tests (Test Master)
@@ -26,7 +27,24 @@ const getTests = async (req, res) => {
 
         const result = await query(queryText, params);
 
-        res.json({ tests: result.rows });
+        // Fetch sub-tests for profiles
+        const profilesQuery = `
+            SELECT pi.profile_id, pi.test_id, t.name, t.code, pi.sort_order
+            FROM test_profile_items pi
+            JOIN tests t ON pi.test_id = t.id
+            WHERE t.tenant_id = $1
+            ORDER BY pi.sort_order
+        `;
+        const profileItemsRes = await query(profilesQuery, [tenantId]);
+
+        const tests = result.rows.map(test => {
+            if (test.is_profile) {
+                test.profileItems = profileItemsRes.rows.filter(pi => pi.profile_id === test.id);
+            }
+            return test;
+        });
+
+        res.json({ tests });
 
     } catch (error) {
         console.error('Get tests error:', error);
@@ -51,6 +69,8 @@ const addTest = async (req, res) => {
             unit,
             sampleType,
             gstPercentage,
+            isProfile,
+            profileItems
         } = req.body;
 
         const tenantId = req.tenantId;
@@ -63,18 +83,39 @@ const addTest = async (req, res) => {
         const result = await query(
             `INSERT INTO tests (
         tenant_id, name, code, category, price, cost, tat_hours,
-        normal_range_male, normal_range_female, unit, sample_type, gst_percentage
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        normal_range_male, normal_range_female, unit, sample_type, gst_percentage, is_profile
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
             [
                 tenantId, name, code, category, price, cost, tatHours,
-                normalRangeMale, normalRangeFemale, unit, sampleType, gstPercentage || 0
+                normalRangeMale, normalRangeFemale, unit, sampleType, gstPercentage || 0, isProfile ? true : false
             ]
         );
 
+        const newTest = result.rows[0];
+
+        if (isProfile && profileItems && Array.isArray(profileItems)) {
+            for (let i = 0; i < profileItems.length; i++) {
+                await query(
+                    `INSERT INTO test_profile_items (profile_id, test_id, sort_order) VALUES ($1, $2, $3)`,
+                    [newTest.id, profileItems[i], i]
+                );
+            }
+        }
+
+        await logAuditEvent({
+            tenantId,
+            userId: req.user?.userId,
+            action: 'CREATE',
+            entityType: 'TEST',
+            entityId: newTest.id,
+            newValues: { name, code, price, cost },
+            details: `Created test/profile ${code} - ${name}`
+        });
+
         res.status(201).json({
             message: 'Test added successfully',
-            test: result.rows[0],
+            test: newTest,
         });
 
     } catch (error) {
@@ -101,6 +142,8 @@ const updateTest = async (req, res) => {
             unit,
             sampleType,
             gstPercentage,
+            isProfile,
+            profileItems
         } = req.body;
 
         const tenantId = req.tenantId;
@@ -117,12 +160,14 @@ const updateTest = async (req, res) => {
         normal_range_female = COALESCE($8, normal_range_female),
         unit = COALESCE($9, unit),
         sample_type = COALESCE($10, sample_type),
-        gst_percentage = COALESCE($11, gst_percentage)
-      WHERE id = $12 AND tenant_id = $13
+        gst_percentage = COALESCE($11, gst_percentage),
+        is_profile = COALESCE($12, is_profile)
+      WHERE id = $13 AND tenant_id = $14
       RETURNING *`,
             [
                 name, code, category, price, cost, tatHours,
                 normalRangeMale, normalRangeFemale, unit, sampleType, gstPercentage,
+                isProfile !== undefined ? isProfile : null,
                 id, tenantId
             ]
         );
@@ -130,6 +175,29 @@ const updateTest = async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Test not found' });
         }
+
+        if (isProfile && profileItems && Array.isArray(profileItems)) {
+            // Remove existing sub-tests
+            await query(`DELETE FROM test_profile_items WHERE profile_id = $1`, [id]);
+
+            // Add new sub-tests
+            for (let i = 0; i < profileItems.length; i++) {
+                await query(
+                    `INSERT INTO test_profile_items (profile_id, test_id, sort_order) VALUES ($1, $2, $3)`,
+                    [id, profileItems[i], i]
+                );
+            }
+        }
+
+        await logAuditEvent({
+            tenantId,
+            userId: req.user?.userId,
+            action: 'UPDATE',
+            entityType: 'TEST',
+            entityId: id,
+            newValues: { name, price, tatHours },
+            details: `Updated test ${id}`
+        });
 
         res.json({
             message: 'Test updated successfully',
@@ -158,6 +226,15 @@ const deleteTest = async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Test not found' });
         }
+
+        await logAuditEvent({
+            tenantId,
+            userId: req.user?.userId,
+            action: 'DELETE',
+            entityType: 'TEST',
+            entityId: id,
+            details: `Deleted test ${id}`
+        });
 
         res.json({ message: 'Test deleted successfully' });
 

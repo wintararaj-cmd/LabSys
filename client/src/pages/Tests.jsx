@@ -23,7 +23,9 @@ function Tests() {
         normal_range_female: '',
         unit: '',
         sample_type: 'Blood',
-        gstPercentage: 0
+        gstPercentage: 0,
+        isProfile: false,
+        profileItems: []
     });
 
     useEffect(() => {
@@ -72,7 +74,9 @@ function Tests() {
             normal_range_female: test.normal_range_female || '',
             unit: test.unit || '',
             sample_type: test.sample_type,
-            gstPercentage: test.gst_percentage || 0
+            gstPercentage: test.gst_percentage || 0,
+            isProfile: test.is_profile || false,
+            profileItems: test.profileItems ? test.profileItems.map(p => p.test_id) : []
         });
         setShowForm(true);
     };
@@ -103,7 +107,9 @@ function Tests() {
             normal_range_female: '',
             unit: '',
             sample_type: 'Blood',
-            gstPercentage: 0
+            gstPercentage: 0,
+            isProfile: false,
+            profileItems: []
         });
         setEditingTest(null);
         setShowForm(false);
@@ -251,7 +257,46 @@ function Tests() {
                                     <option value="28">28%</option>
                                 </select>
                             </div>
+
+                            <div className="form-group" style={{ display: 'flex', alignItems: 'center', marginTop: '30px' }}>
+                                <input
+                                    type="checkbox"
+                                    id="isProfile"
+                                    checked={formData.isProfile}
+                                    onChange={(e) => setFormData({ ...formData, isProfile: e.target.checked })}
+                                    style={{ width: '20px', height: '20px', marginRight: '10px' }}
+                                />
+                                <label htmlFor="isProfile" className="form-label" style={{ marginBottom: 0 }}>Is Profile/Panel</label>
+                            </div>
                         </div>
+
+                        {formData.isProfile && (
+                            <div className="form-row">
+                                <div className="form-group" style={{ width: '100%' }}>
+                                    <label className="form-label">Select Sub-Tests for {formData.name || 'Profile'}</label>
+                                    <div className="sub-tests-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', maxHeight: '200px', overflowY: 'auto', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}>
+                                        {tests.filter(t => !t.is_profile && t.id !== editingTest?.id).map(t => (
+                                            <div key={t.id} style={{ display: 'flex', alignItems: 'center' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    id={`test-${t.id}`}
+                                                    checked={formData.profileItems.includes(t.id)}
+                                                    onChange={(e) => {
+                                                        const newItems = e.target.checked
+                                                            ? [...formData.profileItems, t.id]
+                                                            : formData.profileItems.filter(id => id !== t.id);
+                                                        setFormData({ ...formData, profileItems: newItems });
+                                                    }}
+                                                    style={{ width: '16px', height: '16px', marginRight: '8px' }}
+                                                />
+                                                <label htmlFor={`test-${t.id}`} style={{ fontSize: '14px', margin: 0, cursor: 'pointer' }}>{t.name}</label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <small style={{ color: '#666' }}>Selected: {formData.profileItems.length} tests</small>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="form-row">
                             <div className="form-group">
@@ -369,7 +414,10 @@ function Tests() {
                                         <td>
                                             <span className="badge badge-secondary">{test.code}</span>
                                         </td>
-                                        <td className="font-semibold">{test.name}</td>
+                                        <td className="font-semibold">
+                                            {test.name}
+                                            {test.is_profile && <span className="badge badge-warning" style={{ marginLeft: '8px', fontSize: '10px' }}>PROFILE</span>}
+                                        </td>
                                         <td>
                                             <span className="category-badge">{test.category}</span>
                                         </td>
