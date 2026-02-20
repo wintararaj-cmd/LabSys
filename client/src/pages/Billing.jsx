@@ -535,9 +535,15 @@ function Billing() {
                                     disabled={!!formData.introducer_id}
                                     onChange={(e) => setFormData({ ...formData, introducer_raw: e.target.value })}
                                 >
-                                    <option value="">None</option>
+                                    <option value="">None (Commission → Doctor)</option>
                                     <option value="SELF">SELF (Patient is self-referred)</option>
+                                    <option value="DOCTOR">Registered Doctor ↑</option>
                                 </select>
+                                <small style={{ color: '#6b7280', fontSize: '11px' }}>
+                                    {formData.introducer_id
+                                        ? '🔒 Type auto-set — clear the Introducer to change'
+                                        : 'Select SELF if patient referred themselves'}
+                                </small>
                             </div>
 
                             {/* Live Commission Preview — always shown once doctor selected */}
