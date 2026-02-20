@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { invoiceAPI, patientAPI, testAPI, doctorAPI } from '../services/api';
+import { invoiceAPI, patientAPI, testAPI, doctorAPI, introducerAPI } from '../services/api';
 import './Billing.css';
 
 function Billing() {
     const [invoices, setInvoices] = useState([]);
     const [patients, setPatients] = useState([]);
     const [tests, setTests] = useState([]);
-    const [doctors, setDoctors] = useState([]);
+    const [doctors, setDoctors] = useState([]);       // referring doctors (is_introducer=false)
+    const [introducers, setIntroducers] = useState([]); // introducers (is_introducer=true)
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
 
@@ -66,15 +67,17 @@ function Billing() {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [invoicesRes, testsRes, doctorsRes] = await Promise.all([
+            const [invoicesRes, testsRes, doctorsRes, introducersRes] = await Promise.all([
                 invoiceAPI.getAll({ limit: 10 }),
                 testAPI.getAll(),
-                doctorAPI.getAll()
+                doctorAPI.getAll(),
+                introducerAPI.getAll()
             ]);
 
             setInvoices(invoicesRes.data.invoices || []);
             setTests(testsRes.data.tests || []);
             setDoctors(doctorsRes.data.doctors || []);
+            setIntroducers(introducersRes.data.introducers || []);
         } catch (err) {
             console.error('Failed to load data:', err);
         } finally {
@@ -516,9 +519,9 @@ function Billing() {
                                     })}
                                 >
                                     <option value="">-- None / SELF --</option>
-                                    {doctors.filter(d => d.is_introducer).map(doctor => (
-                                        <option key={doctor.id} value={doctor.id}>
-                                            {doctor.name}{doctor.specialization ? ` · ${doctor.specialization}` : ''}{doctor.commission_percentage ? ` (${doctor.commission_percentage}%)` : ''}
+                                    {introducers.map(intro => (
+                                        <option key={intro.id} value={intro.id}>
+                                            {intro.name}{intro.specialization ? ` · ${intro.specialization}` : ''}{intro.commission_percentage ? ` (${intro.commission_percentage}%)` : ''}
                                         </option>
                                     ))}
                                 </select>

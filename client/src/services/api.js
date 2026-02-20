@@ -93,6 +93,14 @@ export const doctorAPI = {
     getPayouts: (id) => api.get(`/doctors/${id}/payouts`),
 };
 
+// Introducer API
+export const introducerAPI = {
+    getAll: (params) => api.get('/doctors/introducers/list', { params }),
+    create: (data) => api.post('/doctors/introducers', data),
+    update: (id, data) => api.put(`/doctors/introducers/${id}`, data),
+    getOutstanding: (id) => api.get(`/doctors/introducers/${id}/outstanding`),
+};
+
 // Inventory API
 export const inventoryAPI = {
     getAll: (params) => api.get('/inventory', { params }),
