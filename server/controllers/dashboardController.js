@@ -101,6 +101,46 @@ const getDashboardStats = async (req, res) => {
             branchId ? [tenantId, branchId] : [tenantId]
         );
 
+        // Daily revenue trend (last 7 days) - real data
+        const dailyRevenueResult = await query(
+            `SELECT
+               TO_CHAR(DATE(created_at), 'Dy') as day,
+               DATE(created_at) as date,
+               COALESCE(SUM(paid_amount), 0) as revenue,
+               COUNT(DISTINCT patient_id) as patients
+             FROM invoices
+             WHERE tenant_id = $1
+             AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+             ${branchId ? ' AND branch_id = $2' : ''}
+             GROUP BY DATE(created_at)
+             ORDER BY DATE(created_at) ASC`,
+            branchId ? [tenantId, branchId] : [tenantId]
+        );
+
+        // Recent activity from audit_logs
+        const recentActivityResult = await query(
+            `SELECT al.action, al.entity_type, al.entity_id, al.details, al.created_at,
+                    u.name as user_name, u.role as user_role
+             FROM audit_logs al
+             LEFT JOIN users u ON al.user_id = u.id
+             WHERE al.tenant_id = $1
+             ORDER BY al.created_at DESC
+             LIMIT 8`,
+            [tenantId]
+        );
+
+        // Payment mode breakdown for today
+        const paymentModeResult = await query(
+            `SELECT COALESCE(payment_mode, 'UNKNOWN') as payment_mode,
+                    COUNT(*) as count,
+                    COALESCE(SUM(paid_amount), 0) as total
+             FROM invoices
+             WHERE tenant_id = $1 AND DATE(created_at) = $2
+             ${branchId ? ' AND branch_id = $3' : ''}
+             GROUP BY payment_mode`,
+            branchParams
+        );
+
         res.json({
             todayCollection: parseFloat(collectionResult.rows[0].today_collection),
             fyCollection: parseFloat(fyCollectionResult.rows[0].fy_collection),
@@ -111,7 +151,10 @@ const getDashboardStats = async (req, res) => {
             lowStockItems: parseInt(lowStockResult.rows[0].low_stock_items),
             expiringItems: parseInt(expiringItemsResult.rows[0].expiring_items),
             revenueChart: revenueResult.rows,
+            dailyRevenue: dailyRevenueResult.rows,
             topTests: topTestsResult.rows,
+            recentActivity: recentActivityResult.rows,
+            paymentModeBreakdown: paymentModeResult.rows,
         });
 
     } catch (error) {

@@ -1,394 +1,405 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardAPI, branchAPI } from '../services/api'; // Added branchAPI
-import { useAuth } from '../context/AuthContext'; // Added useAuth
+import { dashboardAPI, branchAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import {
-    LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
+    AreaChart, Area, PieChart, Pie, Cell,
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
     ResponsiveContainer
 } from 'recharts';
 import './Dashboard.css';
 
-const COLORS = ['#3498db', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6', '#1abc9c'];
+const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
+
+const ACTION_META = {
+    CREATE: { icon: '➕', color: '#22c55e', bg: '#f0fdf4' },
+    UPDATE: { icon: '✏️', color: '#3b82f6', bg: '#eff6ff' },
+    DELETE: { icon: '🗑️', color: '#ef4444', bg: '#fef2f2' },
+    REFUND: { icon: '↩️', color: '#f59e0b', bg: '#fffbeb' },
+    VERIFY: { icon: '✅', color: '#8b5cf6', bg: '#f5f3ff' },
+    LOGIN: { icon: '🔑', color: '#14b8a6', bg: '#f0fdfa' },
+    DEFAULT: { icon: '📝', color: '#6b7280', bg: '#f9fafb' },
+};
+
+const ENTITY_ICON = {
+    INVOICE: '🧾', TEST: '🔬', REPORT: '📋',
+    PATIENT: '🧑‍⚕️', USER: '👤', INVENTORY: '📦',
+};
+
+const PM_COLOR = { CASH: '#22c55e', CARD: '#6366f1', UPI: '#f59e0b', ONLINE: '#14b8a6', UNKNOWN: '#9ca3af' };
+
+function timeAgo(ts) {
+    const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Date(ts).toLocaleDateString('en-IN');
+}
+
+const CustomTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 14px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+            <p style={{ margin: 0, fontWeight: 700, color: '#1e293b', fontSize: 13 }}>{label}</p>
+            {payload.map((p, i) => (
+                <p key={i} style={{ margin: '4px 0 0', fontSize: 12, color: p.color }}>
+                    {p.name}: <strong>{p.name.includes('₹') || p.dataKey === 'revenue' ? `₹${parseFloat(p.value).toLocaleString('en-IN')}` : p.value}</strong>
+                </p>
+            ))}
+        </div>
+    );
+};
 
 function Dashboard() {
     const navigate = useNavigate();
-    const { user } = useAuth(); // Added
+    const { user } = useAuth();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [branches, setBranches] = useState([]); // Added
-    const [selectedBranch, setSelectedBranch] = useState(''); // Added
-    const [revenueData, setRevenueData] = useState([]);
-    const [testDistribution, setTestDistribution] = useState([]);
-    const [monthlyData, setMonthlyData] = useState([]);
-
-    useEffect(() => {
-        if (user?.role === 'ADMIN') {
-            loadBranches();
-        }
-        loadDashboardData();
-    }, [selectedBranch, user?.role]); // Reload when branch changes or user role is available
+    const [branches, setBranches] = useState([]);
+    const [selectedBranch, setSelectedBranch] = useState('');
+    const [lastRefreshed, setLastRefreshed] = useState(new Date());
 
     const loadBranches = async () => {
         try {
-            const response = await branchAPI.getAll();
-            setBranches(response.data.branches || []);
-        } catch (error) {
-            console.error('Failed to load branches:', error);
-        }
+            const r = await branchAPI.getAll();
+            setBranches(r.data.branches || []);
+        } catch (e) { console.error(e); }
     };
 
-    const loadDashboardData = async () => {
+    const loadDashboardData = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await dashboardAPI.getStats(selectedBranch);
-            setStats(response.data);
-
-            // Generate revenue trend data (last 7 days)
-            generateRevenueData(response.data);
-
-            // Generate test distribution data
-            generateTestDistribution(response.data);
-
-            // Generate monthly data
-            generateMonthlyData(response.data);
-        } catch (error) {
-            console.error('Failed to load stats:', error);
+            const r = await dashboardAPI.getStats(selectedBranch);
+            setStats(r.data);
+            setLastRefreshed(new Date());
+        } catch (e) {
+            console.error('Dashboard load failed:', e);
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedBranch]);
 
-    const generateRevenueData = (data) => {
-        // Simulated revenue trend for last 7 days
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        const revenueData = days.map((day, index) => ({
-            day,
-            revenue: Math.floor(Math.random() * 50000) + 20000,
-            patients: Math.floor(Math.random() * 30) + 10
-        }));
-        setRevenueData(revenueData);
-    };
+    useEffect(() => {
+        if (user?.role === 'ADMIN') loadBranches();
+        loadDashboardData();
+    }, [selectedBranch]);
 
-    const generateTestDistribution = (data) => {
-        if (data?.topTests) {
-            const distribution = data.topTests.slice(0, 5).map(test => ({
-                name: test.name,
-                value: test.count
-            }));
-            setTestDistribution(distribution);
-        }
-    };
+    // Auto-refresh every 2 minutes
+    useEffect(() => {
+        const interval = setInterval(loadDashboardData, 120000);
+        return () => clearInterval(interval);
+    }, [loadDashboardData]);
 
-    const generateMonthlyData = (data) => {
-        // Simulated monthly data for last 6 months
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-        const monthlyData = months.map(month => ({
-            month,
-            revenue: Math.floor(Math.random() * 500000) + 200000,
-            tests: Math.floor(Math.random() * 300) + 100,
-            patients: Math.floor(Math.random() * 200) + 80
-        }));
-        setMonthlyData(monthlyData);
-    };
+    const statCards = stats ? [
+        {
+            label: "Today's Collection",
+            value: `₹${parseFloat(stats.todayCollection || 0).toLocaleString('en-IN')}`,
+            icon: '💰', color: 'blue',
+            sub: `${stats.todayPatients || 0} patients today`
+        },
+        {
+            label: `FY Collection (${stats.accountingYearLabel || ''})`,
+            value: `₹${parseFloat(stats.fyCollection || 0).toLocaleString('en-IN')}`,
+            icon: '📅', color: 'purple',
+            sub: 'Year to Date'
+        },
+        {
+            label: 'Pending Dues',
+            value: `₹${parseFloat(stats.pendingPayments || 0).toLocaleString('en-IN')}`,
+            icon: '⏳', color: 'orange',
+            sub: 'Outstanding balance'
+        },
+        {
+            label: 'Pending Reports',
+            value: stats.pendingReports || 0,
+            icon: '📄', color: 'yellow',
+            sub: 'Require result entry / verification',
+            alert: (stats.pendingReports || 0) > 0
+        },
+        {
+            label: 'Low Stock Items',
+            value: stats.lowStockItems || 0,
+            icon: '⚠️', color: 'red',
+            sub: `${stats.expiringItems || 0} expiring in 30 days`,
+            alert: (stats.lowStockItems || 0) > 0
+        },
+    ] : [];
 
-    const handleQuickAction = (action) => {
-        switch (action) {
-            case 'newPatient':
-                navigate('/patients');
-                break;
-            case 'newInvoice':
-                navigate('/billing');
-                break;
-            case 'enterResults':
-                navigate('/reports');
-                break;
-            case 'viewReports':
-                navigate('/reports');
-                break;
-            default:
-                break;
-        }
-    };
+    if (loading) return <div className="loading"><div className="spinner"></div></div>;
 
-    if (loading) {
-        return <div className="loading"><div className="spinner"></div></div>;
-    }
+    // Build 7-day chart with zeros filled in for missing days
+    const last7Days = Array.from({ length: 7 }).map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' });
+        const dateStr = d.toISOString().split('T')[0];
+        const found = (stats?.dailyRevenue || []).find(r => r.date === dateStr);
+        return { day: dayStr, revenue: found ? parseFloat(found.revenue) : 0, patients: found ? parseInt(found.patients) : 0 };
+    });
+
+    const monthlyChart = (stats?.revenueChart || []).slice().reverse().map(r => ({
+        month: r.month,
+        revenue: parseFloat(r.revenue || 0)
+    }));
+
+    const paymentPie = (stats?.paymentModeBreakdown || [])
+        .filter(p => parseFloat(p.total) > 0)
+        .map(p => ({ name: p.payment_mode, value: parseFloat(p.total) }));
 
     return (
         <div className="dashboard-container">
-            <div className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Header */}
+            <div className="dash-header">
                 <div>
-                    <h1>📊 Dashboard</h1>
-                    <p>Welcome back! Here's what's happening today.</p>
+                    <h1 className="page-title">📊 Dashboard</h1>
+                    <p className="page-subtitle">
+                        Welcome back, <strong>{user?.name}</strong> · Last refreshed {timeAgo(lastRefreshed)}
+                    </p>
                 </div>
-                {user?.role === 'ADMIN' && (
-                    <div className="branch-selector">
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    {user?.role === 'ADMIN' && (
                         <select
                             className="form-select"
                             value={selectedBranch}
-                            onChange={(e) => setSelectedBranch(e.target.value)}
-                            style={{ width: '250px' }}
+                            onChange={e => setSelectedBranch(e.target.value)}
+                            style={{ width: '220px', height: '38px', fontSize: '13px' }}
                         >
-                            <option value="">🏪 Consolidated (All Branches)</option>
+                            <option value="">🏪 All Branches</option>
                             {branches.map(b => (
                                 <option key={b.id} value={b.id}>
                                     {b.is_main_branch ? '⭐ ' : '📍 '}{b.name}
                                 </option>
                             ))}
                         </select>
-                    </div>
-                )}
-            </div>
-
-            {/* Stats Cards */}
-            <div className="stats-grid">
-                <div className="stat-card blue">
-                    <div className="stat-icon">💰</div>
-                    <div className="stat-content">
-                        <div className="stat-label">Today's Collection</div>
-                        <div className="stat-value">₹{stats?.todayCollection?.toLocaleString() || 0}</div>
-                        <div className="stat-change positive">+12% from yesterday</div>
-                    </div>
-                </div>
-
-                <div className="stat-card purple">
-                    <div className="stat-icon">🗓️</div>
-                    <div className="stat-content">
-                        <div className="stat-label">FY Collection ({stats?.accountingYearLabel})</div>
-                        <div className="stat-value">₹{stats?.fyCollection?.toLocaleString() || 0}</div>
-                        <div className="stat-change positive">Year to Date</div>
-                    </div>
-                </div>
-
-                <div className="stat-card green">
-                    <div className="stat-icon">👥</div>
-                    <div className="stat-content">
-                        <div className="stat-label">Today's Patients</div>
-                        <div className="stat-value">{stats?.todayPatients || 0}</div>
-                        <div className="stat-change positive">+8% from yesterday</div>
-                    </div>
-                </div>
-
-                <div className="stat-card yellow">
-                    <div className="stat-icon">📄</div>
-                    <div className="stat-content">
-                        <div className="stat-label">Pending Reports</div>
-                        <div className="stat-value">{stats?.pendingReports || 0}</div>
-                        <div className="stat-change neutral">Requires attention</div>
-                    </div>
-                </div>
-
-                <div className="stat-card red">
-                    <div className="stat-icon">⚠️</div>
-                    <div className="stat-content">
-                        <div className="stat-label">Low Stock Items</div>
-                        <div className="stat-value">{stats?.lowStockItems || 0}</div>
-                        <div className="stat-change warning">Action needed</div>
-                    </div>
+                    )}
+                    <button className="btn btn-secondary" onClick={loadDashboardData} style={{ height: '38px' }}>
+                        ↺ Refresh
+                    </button>
                 </div>
             </div>
 
-            {/* Charts Section */}
-            <div className="charts-grid">
-                {/* Revenue Trend Chart */}
-                <div className="chart-card large">
-                    <div className="chart-header">
-                        <h3>📈 Revenue Trend (Last 7 Days)</h3>
-                        <span className="chart-subtitle">Daily revenue and patient count</span>
+            {/* Stat Cards */}
+            <div className="stats-grid-v2">
+                {statCards.map((card, i) => (
+                    <div key={i} className={`stat-card-v2 ${card.color} ${card.alert ? 'alert-pulse' : ''}`}>
+                        <div className="stat-icon-v2">{card.icon}</div>
+                        <div className="stat-body">
+                            <div className="stat-label-v2">{card.label}</div>
+                            <div className="stat-value-v2">{card.value}</div>
+                            <div className="stat-sub">{card.sub}</div>
+                        </div>
                     </div>
-                    <div className="chart-content">
-                        <ResponsiveContainer width="100%" height={300}>
-                            <AreaChart data={revenueData}>
-                                <defs>
-                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3498db" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#3498db" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                                <XAxis dataKey="day" stroke="#7f8c8d" />
-                                <YAxis stroke="#7f8c8d" />
-                                <Tooltip
-                                    contentStyle={{
-                                        background: '#fff',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '8px',
-                                        padding: '10px'
-                                    }}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="revenue"
-                                    stroke="#3498db"
-                                    fillOpacity={1}
-                                    fill="url(#colorRevenue)"
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                ))}
+            </div>
+
+            {/* Charts Row 1 */}
+            <div className="charts-row">
+                {/* 7-Day Revenue Trend - REAL DATA */}
+                <div className="chart-card-v2 large">
+                    <div className="chart-header-v2">
+                        <div>
+                            <h3>📈 Revenue — Last 7 Days</h3>
+                            <span className="chart-sub">Actual daily collection</span>
+                        </div>
                     </div>
+                    <ResponsiveContainer width="100%" height={240}>
+                        <AreaChart data={last7Days} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="gradRev" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false}
+                                tickFormatter={v => v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Area type="monotone" dataKey="revenue" name="Revenue (₹)" stroke="#6366f1" strokeWidth={2.5} fillOpacity={1} fill="url(#gradRev)" dot={{ fill: '#6366f1', r: 4 }} />
+                        </AreaChart>
+                    </ResponsiveContainer>
                 </div>
 
-                {/* Test Distribution Pie Chart */}
-                <div className="chart-card">
-                    <div className="chart-header">
-                        <h3>🧪 Test Distribution</h3>
-                        <span className="chart-subtitle">Top 5 tests this month</span>
+                {/* Today's Payment Mode Breakdown */}
+                <div className="chart-card-v2">
+                    <div className="chart-header-v2">
+                        <div>
+                            <h3>💳 Today's Payments</h3>
+                            <span className="chart-sub">By payment mode</span>
+                        </div>
                     </div>
-                    <div className="chart-content">
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie
-                                    data={testDistribution}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                    outerRadius={80}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                >
-                                    {testDistribution.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
+                    {paymentPie.length > 0 ? (
+                        <>
+                            <ResponsiveContainer width="100%" height={190}>
+                                <PieChart>
+                                    <Pie data={paymentPie} cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                                        dataKey="value" paddingAngle={3}>
+                                        {paymentPie.map((entry, index) => (
+                                            <Cell key={index} fill={PM_COLOR[entry.name] || COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip formatter={v => `₹${parseFloat(v).toLocaleString('en-IN')}`} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="pm-legend">
+                                {paymentPie.map((p, i) => (
+                                    <div key={i} className="pm-item">
+                                        <span className="pm-dot" style={{ background: PM_COLOR[p.name] || COLORS[i] }}></span>
+                                        <span className="pm-name">{p.name}</span>
+                                        <span className="pm-val">₹{parseFloat(p.value).toLocaleString('en-IN')}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="empty-state" style={{ height: 200 }}>
+                            <p>💤 No collections today yet</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Monthly Analytics */}
-            <div className="chart-card full-width">
-                <div className="chart-header">
-                    <h3>📊 Monthly Analytics (Last 6 Months)</h3>
-                    <span className="chart-subtitle">Revenue, tests, and patients overview</span>
-                </div>
-                <div className="chart-content">
-                    <ResponsiveContainer width="100%" height={350}>
-                        <BarChart data={monthlyData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                            <XAxis dataKey="month" stroke="#7f8c8d" />
-                            <YAxis stroke="#7f8c8d" />
-                            <Tooltip
-                                contentStyle={{
-                                    background: '#fff',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '8px',
-                                    padding: '10px'
-                                }}
-                            />
-                            <Legend />
-                            <Bar dataKey="revenue" fill="#3498db" name="Revenue (₹)" />
-                            <Bar dataKey="tests" fill="#2ecc71" name="Tests" />
-                            <Bar dataKey="patients" fill="#f39c12" name="Patients" />
+            {/* Charts Row 2 */}
+            <div className="charts-row">
+                {/* 6-Month Revenue Bar - REAL DATA */}
+                <div className="chart-card-v2 large">
+                    <div className="chart-header-v2">
+                        <div>
+                            <h3>📊 Monthly Revenue (6 Months)</h3>
+                            <span className="chart-sub">Actual revenue from invoices</span>
+                        </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={monthlyChart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }} barSize={28}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false}
+                                tickFormatter={v => v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`} />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Bar dataKey="revenue" name="Revenue (₹)" fill="#6366f1" radius={[6, 6, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
+
+                {/* Top Tests - REAL DATA */}
+                <div className="chart-card-v2">
+                    <div className="chart-header-v2">
+                        <div>
+                            <h3>🏆 Top Tests (30 Days)</h3>
+                            <span className="chart-sub">Most ordered tests</span>
+                        </div>
+                    </div>
+                    {(stats?.topTests || []).length > 0 ? (
+                        <div className="top-tests-list">
+                            {(stats.topTests || []).map((test, i) => {
+                                const max = stats.topTests[0]?.count || 1;
+                                const pct = Math.round((test.count / max) * 100);
+                                return (
+                                    <div key={i} className="top-test-item">
+                                        <div className="top-test-rank" style={{ color: COLORS[i] }}>#{i + 1}</div>
+                                        <div className="top-test-info">
+                                            <div className="top-test-name">{test.name}</div>
+                                            <div className="top-test-bar-wrap">
+                                                <div className="top-test-bar" style={{ width: `${pct}%`, background: COLORS[i] }}></div>
+                                            </div>
+                                        </div>
+                                        <div className="top-test-count">{test.count}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="empty-state"><p>No test data yet this month</p></div>
+                    )}
+                </div>
             </div>
 
-            {/* Bottom Section */}
-            <div className="dashboard-bottom">
-                {/* Top Tests Table */}
-                <div className="card">
-                    <h3 className="card-header">🏆 Top Tests (This Month)</h3>
-                    <div className="table-container">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Test Name</th>
-                                    <th>Count</th>
-                                    <th>Trend</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {stats?.topTests?.slice(0, 5).map((test, index) => (
-                                    <tr key={index}>
-                                        <td className="rank">#{index + 1}</td>
-                                        <td className="test-name">{test.name}</td>
-                                        <td>
-                                            <span className="badge badge-info">{test.count}</span>
-                                        </td>
-                                        <td>
-                                            <span className="trend-up">↗ {Math.floor(Math.random() * 20 + 5)}%</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+            {/* Bottom Row */}
+            <div className="dash-bottom-row">
+                {/* Live Activity Feed - REAL from audit_logs */}
+                <div className="chart-card-v2 activity-card">
+                    <div className="chart-header-v2">
+                        <div>
+                            <h3>⚡ Live Activity</h3>
+                            <span className="chart-sub">Last 8 system events</span>
+                        </div>
+                        <button className="btn btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }}
+                            onClick={loadDashboardData}>↺</button>
+                    </div>
+                    <div className="activity-feed">
+                        {(stats?.recentActivity || []).length === 0 ? (
+                            <p style={{ color: '#9ca3af', fontSize: 13, padding: '8px 0' }}>No activity recorded yet.</p>
+                        ) : (
+                            (stats.recentActivity || []).map((item, i) => {
+                                const meta = ACTION_META[item.action] || ACTION_META.DEFAULT;
+                                return (
+                                    <div key={i} className="activity-row">
+                                        <div className="activity-icon-v2" style={{ background: meta.bg, color: meta.color }}>
+                                            {ENTITY_ICON[item.entity_type] || meta.icon}
+                                        </div>
+                                        <div className="activity-body">
+                                            <div className="activity-desc">{item.details || `${item.action} on ${item.entity_type}`}</div>
+                                            <div className="activity-meta">
+                                                <span className="activity-user">{item.user_name || 'System'}</span>
+                                                <span className="activity-time">{timeAgo(item.created_at)}</span>
+                                            </div>
+                                        </div>
+                                        <div className="activity-action-badge" style={{ background: meta.bg, color: meta.color }}>
+                                            {item.action}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
                 {/* Quick Actions */}
-                <div className="card">
-                    <h3 className="card-header">⚡ Quick Actions</h3>
-                    <div className="quick-actions">
-                        <button
-                            className="action-btn primary"
-                            onClick={() => handleQuickAction('newPatient')}
-                        >
-                            <span className="action-icon">👤</span>
-                            <span className="action-label">New Patient</span>
-                        </button>
-                        <button
-                            className="action-btn success"
-                            onClick={() => handleQuickAction('newInvoice')}
-                        >
-                            <span className="action-icon">💰</span>
-                            <span className="action-label">New Invoice</span>
-                        </button>
-                        <button
-                            className="action-btn warning"
-                            onClick={() => handleQuickAction('enterResults')}
-                        >
-                            <span className="action-icon">📝</span>
-                            <span className="action-label">Enter Results</span>
-                        </button>
-                        <button
-                            className="action-btn info"
-                            onClick={() => handleQuickAction('viewReports')}
-                        >
-                            <span className="action-icon">📊</span>
-                            <span className="action-label">View Reports</span>
-                        </button>
+                <div className="chart-card-v2 quick-card">
+                    <div className="chart-header-v2">
+                        <div><h3>🚀 Quick Actions</h3></div>
+                    </div>
+                    <div className="quick-grid">
+                        {[
+                            { label: 'New Patient', icon: '👤', path: '/patients', color: '#6366f1' },
+                            { label: 'New Invoice', icon: '🧾', path: '/billing', color: '#22c55e' },
+                            { label: 'Enter Results', icon: '📝', path: '/reports', color: '#f59e0b' },
+                            { label: 'Radiology', icon: '⚡', path: '/radiology', color: '#8b5cf6' },
+                            { label: 'Inventory', icon: '📦', path: '/inventory', color: '#14b8a6' },
+                            { label: 'Finance', icon: '📊', path: '/finance', color: '#ef4444' },
+                        ].map((a, i) => (
+                            <button key={i} className="quick-btn-v2" onClick={() => navigate(a.path)}
+                                style={{ '--qa-color': a.color }}>
+                                <span className="qa-icon">{a.icon}</span>
+                                <span className="qa-label">{a.label}</span>
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Recent Activity */}
-                    <div className="recent-activity">
-                        <h4>Recent Activity</h4>
-                        <div className="activity-list">
-                            <div className="activity-item">
-                                <div className="activity-icon blue">👤</div>
-                                <div className="activity-content">
-                                    <div className="activity-text">New patient registered</div>
-                                    <div className="activity-time">5 minutes ago</div>
+                    {/* Alerts box */}
+                    {(stats?.pendingReports > 0 || stats?.lowStockItems > 0) && (
+                        <div className="alerts-box">
+                            <h4>🔔 Alerts</h4>
+                            {stats.pendingReports > 0 && (
+                                <div className="alert-row warning" onClick={() => navigate('/reports')}>
+                                    <span>📄 {stats.pendingReports} report{stats.pendingReports !== 1 ? 's' : ''} pending entry / verification</span>
+                                    <span className="alert-arrow">→</span>
                                 </div>
-                            </div>
-                            <div className="activity-item">
-                                <div className="activity-icon green">💰</div>
-                                <div className="activity-content">
-                                    <div className="activity-text">Invoice #INV-{Math.floor(Math.random() * 1000)} created</div>
-                                    <div className="activity-time">12 minutes ago</div>
+                            )}
+                            {stats.lowStockItems > 0 && (
+                                <div className="alert-row danger" onClick={() => navigate('/inventory')}>
+                                    <span>⚠️ {stats.lowStockItems} item{stats.lowStockItems !== 1 ? 's' : ''} below reorder level</span>
+                                    <span className="alert-arrow">→</span>
                                 </div>
-                            </div>
-                            <div className="activity-item">
-                                <div className="activity-icon yellow">📄</div>
-                                <div className="activity-content">
-                                    <div className="activity-text">Report verified</div>
-                                    <div className="activity-time">23 minutes ago</div>
+                            )}
+                            {stats.expiringItems > 0 && (
+                                <div className="alert-row warning" onClick={() => navigate('/inventory')}>
+                                    <span>📅 {stats.expiringItems} item{stats.expiringItems !== 1 ? 's' : ''} expiring within 30 days</span>
+                                    <span className="alert-arrow">→</span>
                                 </div>
-                            </div>
-                            <div className="activity-item">
-                                <div className="activity-icon purple">🧪</div>
-                                <div className="activity-content">
-                                    <div className="activity-text">New test added to catalog</div>
-                                    <div className="activity-time">1 hour ago</div>
-                                </div>
-                            </div>
+                            )}
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>
