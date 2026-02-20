@@ -38,6 +38,9 @@ function Layout() {
                     <NavLink to="/doctors" className="nav-link">
                         <span>👨‍⚕️</span> Doctors
                     </NavLink>
+                    <NavLink to="/introducers" className="nav-link">
+                        <span>🤝</span> Introducers
+                    </NavLink>
                     <NavLink to="/inventory" className="nav-link">
                         <span>📦</span> Inventory
                     </NavLink>

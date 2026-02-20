@@ -228,6 +228,153 @@ const getPayoutHistory = async (req, res) => {
     }
 };
 
+/**
+ * Get all Introducers (doctors with is_introducer = true)
+ */
+const getIntroducers = async (req, res) => {
+    try {
+        const tenantId = req.tenantId;
+        const { search } = req.query;
+
+        let queryText = `
+            SELECT d.*,
+                COUNT(DISTINCT i.id)                          AS referral_count,
+                COALESCE(SUM(i.introducer_commission), 0)     AS total_commission_earned,
+                COALESCE((
+                    SELECT SUM(p.amount)
+                    FROM doctor_payouts p
+                    WHERE p.doctor_id = d.id AND p.tenant_id = d.tenant_id
+                ), 0)                                         AS total_commission_paid
+            FROM doctors d
+            LEFT JOIN invoices i ON i.introducer_id = d.id AND i.tenant_id = d.tenant_id
+            WHERE d.tenant_id = $1 AND d.is_introducer = TRUE
+        `;
+        let params = [tenantId];
+
+        if (search) {
+            queryText += ' AND (d.name ILIKE $2 OR d.specialization ILIKE $2 OR d.phone ILIKE $2)';
+            params.push(`%${search}%`);
+        }
+
+        queryText += ' GROUP BY d.id ORDER BY d.name';
+
+        const result = await query(queryText, params);
+        res.json({ introducers: result.rows });
+    } catch (error) {
+        console.error('Get introducers error:', error);
+        res.status(500).json({ error: 'Failed to fetch introducers' });
+    }
+};
+
+/**
+ * Add new Introducer
+ */
+const addIntroducer = async (req, res) => {
+    try {
+        const { name, specialization, phone, email, commissionPercentage, address } = req.body;
+        const tenantId = req.tenantId;
+
+        if (!name) return res.status(400).json({ error: 'Name is required' });
+
+        const result = await query(
+            `INSERT INTO doctors (tenant_id, name, specialization, phone, email, commission_percentage, is_introducer)
+             VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+             RETURNING *`,
+            [tenantId, name, specialization, phone, email, commissionPercentage || 0]
+        );
+
+        res.status(201).json({ message: 'Introducer added', doctor: result.rows[0] });
+    } catch (error) {
+        console.error('Add introducer error:', error);
+        res.status(500).json({ error: 'Failed to add introducer' });
+    }
+};
+
+/**
+ * Update Introducer
+ */
+const updateIntroducer = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, specialization, phone, email, commissionPercentage } = req.body;
+        const tenantId = req.tenantId;
+
+        const result = await query(
+            `UPDATE doctors SET
+                name = COALESCE($1, name),
+                specialization = COALESCE($2, specialization),
+                phone = COALESCE($3, phone),
+                email = COALESCE($4, email),
+                commission_percentage = COALESCE($5, commission_percentage)
+             WHERE id = $6 AND tenant_id = $7 AND is_introducer = TRUE
+             RETURNING *`,
+            [name, specialization, phone, email, commissionPercentage, id, tenantId]
+        );
+
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Introducer not found' });
+        res.json({ message: 'Introducer updated', doctor: result.rows[0] });
+    } catch (error) {
+        console.error('Update introducer error:', error);
+        res.status(500).json({ error: 'Failed to update introducer' });
+    }
+};
+
+/**
+ * Get Introducer Outstanding Commission (uses introducer_commission column)
+ */
+const getIntroducerOutstanding = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.tenantId;
+
+        const earnedResult = await query(
+            `SELECT
+                COALESCE(SUM(i.introducer_commission), 0)  AS total_earned,
+                COUNT(i.id)                               AS total_invoices,
+                COALESCE(SUM(i.net_amount), 0)            AS total_business
+             FROM invoices i
+             WHERE i.introducer_id = $1 AND i.tenant_id = $2`,
+            [id, tenantId]
+        );
+
+        const paidResult = await query(
+            `SELECT COALESCE(SUM(amount), 0) AS total_paid FROM doctor_payouts
+             WHERE doctor_id = $1 AND tenant_id = $2`,
+            [id, tenantId]
+        );
+
+        // Monthly breakdown (last 6 months)
+        const monthlyResult = await query(
+            `SELECT
+                TO_CHAR(i.created_at, 'Mon YYYY')           AS month,
+                COUNT(i.id)                                  AS invoices,
+                COALESCE(SUM(i.introducer_commission), 0)    AS commission,
+                DATE_TRUNC('month', i.created_at)            AS month_date
+             FROM invoices i
+             WHERE i.introducer_id = $1 AND i.tenant_id = $2
+               AND i.created_at >= CURRENT_DATE - INTERVAL '6 months'
+             GROUP BY TO_CHAR(i.created_at, 'Mon YYYY'), DATE_TRUNC('month', i.created_at)
+             ORDER BY month_date DESC`,
+            [id, tenantId]
+        );
+
+        const totalEarned = parseFloat(earnedResult.rows[0].total_earned);
+        const totalPaid = parseFloat(paidResult.rows[0].total_paid);
+
+        res.json({
+            total_earned: totalEarned,
+            total_paid: totalPaid,
+            outstanding_amount: totalEarned - totalPaid,
+            total_invoices: parseInt(earnedResult.rows[0].total_invoices),
+            total_business: parseFloat(earnedResult.rows[0].total_business),
+            monthly: monthlyResult.rows
+        });
+    } catch (error) {
+        console.error('Get introducer outstanding error:', error);
+        res.status(500).json({ error: 'Failed to fetch introducer commission' });
+    }
+};
+
 module.exports = {
     getDoctors,
     addDoctor,
@@ -235,5 +382,10 @@ module.exports = {
     getDoctorCommission,
     getOutstandingCommission,
     createPayout,
-    getPayoutHistory
+    getPayoutHistory,
+    // Introducers
+    getIntroducers,
+    addIntroducer,
+    updateIntroducer,
+    getIntroducerOutstanding,
 };

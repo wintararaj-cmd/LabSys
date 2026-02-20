@@ -9,6 +9,7 @@ import Billing from './pages/Billing';
 import Reports from './pages/Reports';
 import Tests from './pages/Tests';
 import Doctors from './pages/Doctors';
+import Introducers from './pages/Introducers';
 import Inventory from './pages/Inventory';
 import Branches from './pages/Branches';
 import Settings from './pages/Settings';
@@ -55,6 +56,7 @@ function App() {
                 <Route path="reports" element={<Reports />} />
                 <Route path="tests" element={<Tests />} />
                 <Route path="doctors" element={<Doctors />} />
+                <Route path="introducers" element={<Introducers />} />
                 <Route path="inventory" element={<Inventory />} />
                 <Route path="branches" element={<Branches />} />
                 <Route path="settings" element={<Settings />} />
