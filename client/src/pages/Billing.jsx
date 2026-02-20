@@ -476,7 +476,7 @@ function Billing() {
                                     <option value="">-- Select Referring Doctor --</option>
                                     {doctors.filter(d => !d.is_introducer).map(doctor => (
                                         <option key={doctor.id} value={doctor.id}>
-                                            {doctor.name} {doctor.specialization ? `(${doctor.specialization})` : ''}
+                                            {doctor.name}{doctor.specialization ? ` · ${doctor.specialization}` : ''}{doctor.commission_percentage ? ` (${doctor.commission_percentage}%)` : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -503,7 +503,9 @@ function Billing() {
                         {/* Introducer Row */}
                         <div className="form-row">
                             <div className="form-group">
-                                <label className="form-label">Introducer</label>
+                                <label className="form-label">Introducer
+                                    <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 6, fontWeight: 400 }}>registered introducers only</span>
+                                </label>
                                 <select
                                     className="form-select"
                                     value={formData.introducer_id}
@@ -514,9 +516,9 @@ function Billing() {
                                     })}
                                 >
                                     <option value="">-- None / SELF --</option>
-                                    {doctors.map(doctor => (
+                                    {doctors.filter(d => d.is_introducer).map(doctor => (
                                         <option key={doctor.id} value={doctor.id}>
-                                            {doctor.name} {doctor.specialization ? `(${doctor.specialization})` : ''}
+                                            {doctor.name}{doctor.specialization ? ` · ${doctor.specialization}` : ''}{doctor.commission_percentage ? ` (${doctor.commission_percentage}%)` : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -538,27 +540,37 @@ function Billing() {
                                 </select>
                             </div>
 
-                            {/* Live Commission Preview */}
+                            {/* Live Commission Preview — always shown once doctor selected */}
                             {formData.doctor_id && (
-                                <div className="form-group" style={{ display: 'flex', alignItems: 'center' }}>
+                                <div className="form-group">
                                     <div className="commission-preview-box">
                                         {commissionLoading ? (
-                                            <span style={{ color: '#9ca3af', fontSize: '12px' }}>Calculating...</span>
-                                        ) : commissionPreview ? (
+                                            <span style={{ color: '#9ca3af', fontSize: 12 }}>Calculating...</span>
+                                        ) : !commissionPreview || calculations.net_amount <= 0 ? (
+                                            <span style={{ color: '#9ca3af', fontSize: 12 }}>💡 Select tests to see commission preview</span>
+                                        ) : (
                                             <>
-                                                <div className="comm-mode-badge">{commissionPreview.mode}</div>
+                                                <div className={`comm-mode-badge ${commissionPreview.mode}`}>
+                                                    {commissionPreview.mode === 'SPLIT' ? '⚖️ SPLIT'
+                                                        : commissionPreview.mode === 'DOCTOR' ? '👨‍⚕️ DOCTOR'
+                                                            : commissionPreview.mode === 'INTRODUCER' ? '🤝 INTRODUCER'
+                                                                : 'NONE'}
+                                                </div>
                                                 <div className="comm-detail">
                                                     {commissionPreview.mode === 'SPLIT' ? (
-                                                        <><span>👨‍⚕️ Dr: ₹{commissionPreview.doctorCommission}</span><span>🤝 Intro: ₹{commissionPreview.introducerCommission}</span></>
+                                                        <>
+                                                            <span>👨‍⚕️ Dr: ₹{commissionPreview.doctorCommission} ({commissionPreview.commissionPct}%)</span>
+                                                            <span>🤝 Intro: ₹{commissionPreview.introducerCommission}</span>
+                                                        </>
                                                     ) : commissionPreview.mode === 'DOCTOR' ? (
-                                                        <span>👨‍⚕️ Doctor gets ₹{commissionPreview.doctorCommission} ({commissionPreview.commissionPct}%)</span>
+                                                        <span>👨‍⚕️ Doctor: ₹{commissionPreview.doctorCommission} ({commissionPreview.commissionPct}%)</span>
                                                     ) : commissionPreview.mode === 'INTRODUCER' ? (
-                                                        <span>🤝 Introducer gets ₹{commissionPreview.introducerCommission}</span>
+                                                        <span>🤝 Introducer: ₹{commissionPreview.introducerCommission}</span>
                                                     ) : null}
                                                 </div>
                                                 <div className="comm-summary" title={commissionPreview.summary}>ℹ️ {commissionPreview.summary}</div>
                                             </>
-                                        ) : null}
+                                        )}
                                     </div>
                                 </div>
                             )}

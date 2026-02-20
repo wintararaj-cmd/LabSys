@@ -1,24 +1,38 @@
 const { query } = require('../config/db');
 
 /**
- * Get all doctors
+ * Get all doctors (enriched with referral stats)
  */
 const getDoctors = async (req, res) => {
     try {
         const tenantId = req.tenantId;
         const { search } = req.query;
 
-        let queryText = 'SELECT * FROM doctors WHERE tenant_id = $1';
+        let whereClause = 'd.tenant_id = $1 AND d.is_introducer = FALSE';
         let params = [tenantId];
 
         if (search) {
-            queryText += ' AND (name ILIKE $2 OR specialization ILIKE $2)';
+            whereClause += ' AND (d.name ILIKE $2 OR d.specialization ILIKE $2)';
             params.push(`%${search}%`);
         }
 
-        queryText += ' ORDER BY name';
-
-        const result = await query(queryText, params);
+        const result = await query(
+            `SELECT d.*,
+                COUNT(DISTINCT i.id)                          AS referral_count,
+                COALESCE(SUM(i.doctor_commission), 0)         AS total_commission_earned,
+                COALESCE(SUM(i.net_amount), 0)                AS total_business,
+                COALESCE((
+                    SELECT SUM(p.amount)
+                    FROM doctor_payouts p
+                    WHERE p.doctor_id = d.id AND p.tenant_id = d.tenant_id
+                ), 0)                                         AS total_commission_paid
+             FROM doctors d
+             LEFT JOIN invoices i ON i.doctor_id = d.id AND i.tenant_id = d.tenant_id
+             WHERE ${whereClause}
+             GROUP BY d.id
+             ORDER BY d.name`,
+            params
+        );
 
         res.json({ doctors: result.rows });
 
@@ -132,39 +146,87 @@ const getDoctorCommission = async (req, res) => {
 
 
 /**
- * Get Outstanding Commission
+ * Get Outstanding Commission (uses stored doctor_commission column)
+ * Correctly reflects SPLIT invoices — bug fix from old recalculation formula
  */
 const getOutstandingCommission = async (req, res) => {
     try {
         const { id } = req.params;
         const tenantId = req.tenantId;
 
-        // 1. Calculate Total Earned Commission
+        // 1. Totals from stored column (correct after splits)
         const earnedResult = await query(
-            `SELECT COALESCE(SUM(i.net_amount * d.commission_percentage / 100), 0) as total_earned
-             FROM doctors d
-             LEFT JOIN invoices i ON d.id = i.doctor_id 
-             WHERE d.id = $1 AND d.tenant_id = $2`,
+            `SELECT
+                COALESCE(SUM(i.doctor_commission), 0)        AS total_earned,
+                COUNT(i.id)                                  AS total_invoices,
+                COALESCE(SUM(i.net_amount), 0)               AS total_business,
+                COALESCE(SUM(i.introducer_commission), 0)    AS total_given_to_intro,
+                SUM(CASE WHEN i.commission_mode = 'DOCTOR'      THEN 1 ELSE 0 END) AS mode_doctor,
+                SUM(CASE WHEN i.commission_mode = 'INTRODUCER'  THEN 1 ELSE 0 END) AS mode_introducer,
+                SUM(CASE WHEN i.commission_mode = 'SPLIT'       THEN 1 ELSE 0 END) AS mode_split
+             FROM invoices i
+             WHERE i.doctor_id = $1 AND i.tenant_id = $2`,
             [id, tenantId]
         );
 
-        // 2. Calculate Total Paid Commission
+        // 2. Total paid out
         const paidResult = await query(
-            `SELECT COALESCE(SUM(amount), 0) as total_paid
+            `SELECT COALESCE(SUM(amount), 0) AS total_paid
              FROM doctor_payouts
              WHERE doctor_id = $1 AND tenant_id = $2`,
             [id, tenantId]
         );
 
-        const totalEarned = parseFloat(earnedResult.rows[0].total_earned);
-        const totalPaid = parseFloat(paidResult.rows[0].total_paid);
-        const outstanding = totalEarned - totalPaid;
+        // 3. Monthly breakdown — last 6 months
+        const monthlyResult = await query(
+            `SELECT
+                TO_CHAR(i.created_at, 'Mon YYYY')           AS month,
+                COUNT(i.id)                                  AS invoices,
+                COALESCE(SUM(i.doctor_commission), 0)        AS commission,
+                COALESCE(SUM(i.net_amount), 0)               AS business,
+                DATE_TRUNC('month', i.created_at)            AS month_date
+             FROM invoices i
+             WHERE i.doctor_id = $1 AND i.tenant_id = $2
+               AND i.created_at >= CURRENT_DATE - INTERVAL '6 months'
+             GROUP BY TO_CHAR(i.created_at, 'Mon YYYY'), DATE_TRUNC('month', i.created_at)
+             ORDER BY month_date DESC`,
+            [id, tenantId]
+        );
+
+        // 4. Recent invoice breakdown — last 20
+        const breakdownResult = await query(
+            `SELECT
+                i.id, i.invoice_number, i.created_at,
+                i.net_amount, i.commission_mode,
+                i.doctor_commission, i.introducer_commission,
+                d2.name AS introducer_name
+             FROM invoices i
+             LEFT JOIN doctors d2 ON d2.id = i.introducer_id
+             WHERE i.doctor_id = $1 AND i.tenant_id = $2
+             ORDER BY i.created_at DESC
+             LIMIT 20`,
+            [id, tenantId]
+        );
+
+        const row = earnedResult.rows[0];
+        const totalEarned = parseFloat(row.total_earned);
+        const totalPaid   = parseFloat(paidResult.rows[0].total_paid);
 
         res.json({
-            doctor_id: id,
-            total_earned: totalEarned,
-            total_paid: totalPaid,
-            outstanding_amount: outstanding
+            doctor_id:         id,
+            total_earned:      totalEarned,
+            total_paid:        totalPaid,
+            outstanding_amount: totalEarned - totalPaid,
+            total_invoices:    parseInt(row.total_invoices),
+            total_business:    parseFloat(row.total_business),
+            total_given_to_intro: parseFloat(row.total_given_to_intro),
+            mode_counts: {
+                DOCTOR:      parseInt(row.mode_doctor),
+                INTRODUCER:  parseInt(row.mode_introducer),
+                SPLIT:       parseInt(row.mode_split),
+            },
+            monthly:   monthlyResult.rows,
+            breakdown: breakdownResult.rows,
         });
 
     } catch (error) {

@@ -342,11 +342,11 @@ const Doctors = () => {
                         <tr>
                             <th>Name</th>
                             <th>Specialization</th>
-                            <th>Qualification</th>
-                            <th>Registration #</th>
                             <th>Phone</th>
                             <th>Commission</th>
-                            <th>Referrals</th>
+                            <th>Cases</th>
+                            <th>Earned ₹</th>
+                            <th>Outstanding ₹</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -363,51 +363,42 @@ const Doctors = () => {
                                 </td>
                             </tr>
                         ) : (
-                            currentDoctors.map(doctor => (
-                                <tr key={doctor.id}>
-                                    <td className="doctor-name">
-                                        <div className="name-cell">
-                                            <strong>{doctor.name}</strong>
-                                            {doctor.email && <small>{doctor.email}</small>}
-                                        </div>
-                                    </td>
-                                    <td>{doctor.specialization || '-'}</td>
-                                    <td>{doctor.qualification || '-'}</td>
-                                    <td className="reg-number">{doctor.registration_number || '-'}</td>
-                                    <td>{doctor.phone}</td>
-                                    <td className="commission-cell">
-                                        <span className="commission-badge">
-                                            {getCommissionDisplay(doctor)}
-                                        </span>
-                                    </td>
-                                    <td className="referrals-cell">
-                                        <span className="referral-count">{doctor.referral_count || 0}</span>
-                                    </td>
-                                    <td className="actions">
-                                        <button
-                                            onClick={() => handleViewCommission(doctor)}
-                                            className="btn-view"
-                                            title="View Commission"
-                                        >
-                                            💰
-                                        </button>
-                                        <button
-                                            onClick={() => handleEdit(doctor)}
-                                            className="btn-edit"
-                                            title="Edit"
-                                        >
-                                            ✏️
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(doctor.id)}
-                                            className="btn-delete"
-                                            title="Delete"
-                                        >
-                                            🗑️
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
+                            currentDoctors.map(doctor => {
+                                const outstanding = parseFloat(doctor.total_commission_earned || 0) - parseFloat(doctor.total_commission_paid || 0);
+                                return (
+                                    <tr key={doctor.id}>
+                                        <td className="doctor-name">
+                                            <div className="name-cell">
+                                                <strong>{doctor.name}</strong>
+                                                {doctor.email && <small>{doctor.email}</small>}
+                                            </div>
+                                        </td>
+                                        <td>{doctor.specialization || '-'}</td>
+                                        <td>{doctor.phone}</td>
+                                        <td className="commission-cell">
+                                            <span className="commission-badge">
+                                                {getCommissionDisplay(doctor)}
+                                            </span>
+                                        </td>
+                                        <td className="referrals-cell">
+                                            <span className="referral-count">{doctor.referral_count || 0}</span>
+                                        </td>
+                                        <td style={{ color: '#059669', fontWeight: 700 }}>
+                                            ₹{parseFloat(doctor.total_commission_earned || 0).toFixed(2)}
+                                        </td>
+                                        <td>
+                                            <span style={{ fontWeight: 700, color: outstanding > 0 ? '#dc2626' : '#059669' }}>
+                                                ₹{outstanding.toFixed(2)}
+                                            </span>
+                                        </td>
+                                        <td className="actions">
+                                            <button onClick={() => handleViewCommission(doctor)} className="btn-view" title="Commission & Payouts">💰</button>
+                                            <button onClick={() => handleEdit(doctor)} className="btn-edit" title="Edit">✏️</button>
+                                            <button onClick={() => handleDelete(doctor.id)} className="btn-delete" title="Delete">🗑️</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>
@@ -438,8 +429,8 @@ const Doctors = () => {
                     <div className="modal-content large-modal">
                         <div className="modal-header">
                             <div>
-                                <h2>Commission: {selectedDoctor.name}</h2>
-                                <p className="subtitle">Manage commissions and payouts</p>
+                                <h2>💰 Commission: {selectedDoctor.name}</h2>
+                                <p className="subtitle">Commission {getCommissionDisplay(selectedDoctor)} · {commissionData.total_invoices || 0} total cases</p>
                             </div>
                             <button className="close-btn" onClick={() => setShowCommissionModal(false)}>✕</button>
                         </div>
@@ -447,46 +438,147 @@ const Doctors = () => {
                         <div className="modal-body p-0">
                             {/* Tabs */}
                             <div className="tabs">
-                                <button
-                                    className={`tab ${activeTab === 'OVERVIEW' ? 'active' : ''}`}
-                                    onClick={() => setActiveTab('OVERVIEW')}
-                                >
-                                    📊 Overview
-                                </button>
-                                <button
-                                    className={`tab ${activeTab === 'PAYOUTS' ? 'active' : ''}`}
-                                    onClick={() => setActiveTab('PAYOUTS')}
-                                >
-                                    💸 Payout History
-                                </button>
-                                <button
-                                    className={`tab ${activeTab === 'NEW_PAYOUT' ? 'active' : ''}`}
-                                    onClick={() => setActiveTab('NEW_PAYOUT')}
-                                >
-                                    ➕ Record Payout
-                                </button>
+                                {['OVERVIEW', 'MONTHLY', 'INVOICES', 'PAYOUTS', 'NEW_PAYOUT'].map(tab => (
+                                    <button key={tab}
+                                        className={`tab ${activeTab === tab ? 'active' : ''}`}
+                                        onClick={() => setActiveTab(tab)}>
+                                        {tab === 'OVERVIEW' ? '📊 Overview'
+                                            : tab === 'MONTHLY' ? '📅 Monthly'
+                                                : tab === 'INVOICES' ? '🧾 Invoices'
+                                                    : tab === 'PAYOUTS' ? '💸 Payout History'
+                                                        : '➕ Record Payout'}
+                                    </button>
+                                ))}
                             </div>
 
                             <div className="tab-content p-4">
+
+                                {/* OVERVIEW */}
                                 {activeTab === 'OVERVIEW' && (
                                     <div className="overview-tab">
                                         <div className="stats-grid">
                                             <div className="stat-card">
-                                                <label>Total Earned</label>
-                                                <div className="value">₹{parseFloat(commissionData.total_earned || 0).toFixed(2)}</div>
+                                                <label>Total Cases</label>
+                                                <div className="value">{commissionData.total_invoices || 0}</div>
                                             </div>
                                             <div className="stat-card">
-                                                <label>Total Paid</label>
-                                                <div className="value">₹{parseFloat(commissionData.total_paid || 0).toFixed(2)}</div>
+                                                <label>Total Business</label>
+                                                <div className="value">₹{parseFloat(commissionData.total_business || 0).toFixed(2)}</div>
+                                            </div>
+                                            <div className="stat-card">
+                                                <label>Commission Earned</label>
+                                                <div className="value" style={{ color: '#059669' }}>₹{parseFloat(commissionData.total_earned || 0).toFixed(2)}</div>
+                                            </div>
+                                            <div className="stat-card">
+                                                <label>Commission Paid</label>
+                                                <div className="value" style={{ color: '#6b7280' }}>₹{parseFloat(commissionData.total_paid || 0).toFixed(2)}</div>
                                             </div>
                                             <div className="stat-card highlight">
                                                 <label>Outstanding Balance</label>
-                                                <div className="value">₹{parseFloat(commissionData.outstanding_amount || 0).toFixed(2)}</div>
+                                                <div className="value" style={{ color: commissionData.outstanding_amount > 0 ? '#dc2626' : '#059669' }}>
+                                                    ₹{parseFloat(commissionData.outstanding_amount || 0).toFixed(2)}
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {/* Mode breakdown badges */}
+                                        {commissionData.mode_counts && (
+                                            <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+                                                <span style={{ background: '#dbeafe', color: '#1e40af', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+                                                    👨‍⚕️ Doctor only: {commissionData.mode_counts.DOCTOR}
+                                                </span>
+                                                <span style={{ background: '#fef3c7', color: '#92400e', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+                                                    🤝 To Introducer: {commissionData.mode_counts.INTRODUCER}
+                                                </span>
+                                                <span style={{ background: '#ede9fe', color: '#5b21b6', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+                                                    ⚖️ Split 50/50: {commissionData.mode_counts.SPLIT}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {commissionData.outstanding_amount > 0 && (
+                                            <div style={{ marginTop: 16, textAlign: 'right' }}>
+                                                <button className="btn-save" onClick={() => setActiveTab('NEW_PAYOUT')}>💸 Record Payout Now</button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
+                                {/* MONTHLY */}
+                                {activeTab === 'MONTHLY' && (
+                                    <div className="payouts-tab">
+                                        {(!commissionData.monthly || commissionData.monthly.length === 0) ? (
+                                            <p style={{ color: '#6b7280', textAlign: 'center', padding: '30px 0' }}>No referral activity in last 6 months.</p>
+                                        ) : (
+                                            <table className="table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Month</th>
+                                                        <th>Cases</th>
+                                                        <th>Business</th>
+                                                        <th>Dr Commission</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {commissionData.monthly.map((row, i) => (
+                                                        <tr key={i}>
+                                                            <td>{row.month}</td>
+                                                            <td>{row.invoices}</td>
+                                                            <td>₹{parseFloat(row.business).toFixed(2)}</td>
+                                                            <td style={{ fontWeight: 700, color: '#059669' }}>₹{parseFloat(row.commission).toFixed(2)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* INVOICES BREAKDOWN */}
+                                {activeTab === 'INVOICES' && (
+                                    <div className="payouts-tab">
+                                        {(!commissionData.breakdown || commissionData.breakdown.length === 0) ? (
+                                            <p style={{ color: '#6b7280', textAlign: 'center', padding: '30px 0' }}>No invoices found.</p>
+                                        ) : (
+                                            <table className="table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Date</th>
+                                                        <th>Invoice #</th>
+                                                        <th>Net Amt</th>
+                                                        <th>Mode</th>
+                                                        <th>Dr Comm</th>
+                                                        <th>Intro Comm</th>
+                                                        <th>Introducer</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {commissionData.breakdown.map(inv => (
+                                                        <tr key={inv.id}>
+                                                            <td>{new Date(inv.created_at).toLocaleDateString('en-IN')}</td>
+                                                            <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{inv.invoice_number}</td>
+                                                            <td>₹{parseFloat(inv.net_amount).toFixed(2)}</td>
+                                                            <td>
+                                                                <span style={{
+                                                                    padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                                                                    background: inv.commission_mode === 'SPLIT' ? '#ede9fe'
+                                                                        : inv.commission_mode === 'INTRODUCER' ? '#fef3c7' : '#dbeafe',
+                                                                    color: inv.commission_mode === 'SPLIT' ? '#5b21b6'
+                                                                        : inv.commission_mode === 'INTRODUCER' ? '#92400e' : '#1e40af'
+                                                                }}>{inv.commission_mode}</span>
+                                                            </td>
+                                                            <td style={{ color: '#059669', fontWeight: 700 }}>₹{parseFloat(inv.doctor_commission).toFixed(2)}</td>
+                                                            <td style={{ color: '#6b7280' }}>₹{parseFloat(inv.introducer_commission).toFixed(2)}</td>
+                                                            <td>{inv.introducer_name || '—'}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* PAYOUT HISTORY */}
                                 {activeTab === 'PAYOUTS' && (
                                     <div className="payouts-tab">
                                         <table className="table">
@@ -505,8 +597,8 @@ const Doctors = () => {
                                                 ) : (
                                                     payouts.map((payout) => (
                                                         <tr key={payout.id}>
-                                                            <td>{new Date(payout.payment_date).toLocaleDateString()}</td>
-                                                            <td className="font-bold">₹{parseFloat(payout.amount).toFixed(2)}</td>
+                                                            <td>{new Date(payout.payment_date).toLocaleDateString('en-IN')}</td>
+                                                            <td className="font-bold" style={{ color: '#059669' }}>₹{parseFloat(payout.amount).toFixed(2)}</td>
                                                             <td><span className="badge badge-info">{payout.payment_mode}</span></td>
                                                             <td>{payout.reference_number || '-'}</td>
                                                             <td>{payout.notes || '-'}</td>
@@ -518,6 +610,7 @@ const Doctors = () => {
                                     </div>
                                 )}
 
+                                {/* NEW PAYOUT */}
                                 {activeTab === 'NEW_PAYOUT' && (
                                     <div className="new-payout-tab">
                                         <div className="form-group">
@@ -534,46 +627,36 @@ const Doctors = () => {
 
                                         <div className="form-group">
                                             <label>Payment Date</label>
-                                            <input
-                                                type="date"
-                                                className="form-control"
+                                            <input type="date" className="form-control"
                                                 value={payoutForm.paymentDate}
-                                                onChange={(e) => setPayoutForm({ ...payoutForm, paymentDate: e.target.value })}
-                                            />
+                                                onChange={(e) => setPayoutForm({ ...payoutForm, paymentDate: e.target.value })} />
                                         </div>
 
                                         <div className="form-group">
                                             <label>Payment Mode</label>
-                                            <select
-                                                className="form-control"
+                                            <select className="form-control"
                                                 value={payoutForm.paymentMode}
-                                                onChange={(e) => setPayoutForm({ ...payoutForm, paymentMode: e.target.value })}
-                                            >
+                                                onChange={(e) => setPayoutForm({ ...payoutForm, paymentMode: e.target.value })}>
                                                 <option value="CASH">Cash</option>
                                                 <option value="ONLINE">Online Transfer / UPI</option>
-                                                <option value="CHECK">Check</option>
+                                                <option value="CHECK">Cheque</option>
                                             </select>
                                         </div>
 
                                         <div className="form-group">
                                             <label>Reference Number (Optional)</label>
-                                            <input
-                                                type="text"
-                                                className="form-control"
-                                                placeholder="Transaction ID / Check No"
+                                            <input type="text" className="form-control"
+                                                placeholder="Transaction ID / Cheque No"
                                                 value={payoutForm.referenceNumber}
-                                                onChange={(e) => setPayoutForm({ ...payoutForm, referenceNumber: e.target.value })}
-                                            />
+                                                onChange={(e) => setPayoutForm({ ...payoutForm, referenceNumber: e.target.value })} />
                                         </div>
 
                                         <div className="form-group">
                                             <label>Notes</label>
-                                            <textarea
-                                                className="form-control"
-                                                rows="2"
+                                            <textarea className="form-control" rows="2"
                                                 value={payoutForm.notes}
-                                                onChange={(e) => setPayoutForm({ ...payoutForm, notes: e.target.value })}
-                                            ></textarea>
+                                                onChange={(e) => setPayoutForm({ ...payoutForm, notes: e.target.value })}>
+                                            </textarea>
                                         </div>
 
                                         <button
@@ -585,6 +668,7 @@ const Doctors = () => {
                                         </button>
                                     </div>
                                 )}
+
                             </div>
                         </div>
                     </div>
