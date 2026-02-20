@@ -16,18 +16,18 @@ async function seedRadiology() {
 
         // 2. Add Radiology Tests if not exist
         const tests = [
-            { name: 'X-Ray Chest PA View', code: 'XR001', category: 'Radiology', price: 500 },
-            { name: 'USG Whole Abdomen', code: 'USG001', category: 'Radiology', price: 1500 },
-            { name: 'CT Scan Brain', code: 'CT001', category: 'Radiology', price: 3500 },
-            { name: 'MRI Lumbar Spine', code: 'MRI001', category: 'Radiology', price: 6500 }
+            { name: 'X-Ray Chest PA View', code: 'XR001', category: 'Radiology', department: 'XRAY', price: 500 },
+            { name: 'USG Whole Abdomen', code: 'USG001', category: 'Radiology', department: 'USG', price: 1500 },
+            { name: 'CT Scan Brain', code: 'CT001', category: 'Radiology', department: 'CT', price: 3500 },
+            { name: 'MRI Lumbar Spine', code: 'MRI001', category: 'Radiology', department: 'MRI', price: 6500 }
         ];
 
         for (const test of tests) {
             await pool.query(
-                `INSERT INTO tests (tenant_id, name, code, category, price) 
-                 VALUES ($1, $2, $3, $4, $5)
+                `INSERT INTO tests (tenant_id, name, code, category, department, price) 
+                 VALUES ($1, $2, $3, $4, $5, $6)
                  ON CONFLICT DO NOTHING`,
-                [tenantId, test.name, test.code, test.category, test.price]
+                [tenantId, test.name, test.code, test.category, test.department, test.price]
             );
         }
 

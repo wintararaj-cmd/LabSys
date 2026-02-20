@@ -16,6 +16,7 @@ function Tests() {
         name: '',
         code: '',
         category: 'Biochemistry',
+        department: 'GENERAL',
         price: '',
         cost: '',
         tat_hours: '',
@@ -67,6 +68,7 @@ function Tests() {
             name: test.name,
             code: test.code,
             category: test.category,
+            department: test.department || 'GENERAL',
             price: test.price,
             cost: test.cost,
             tat_hours: test.tat_hours,
@@ -100,6 +102,7 @@ function Tests() {
             name: '',
             code: '',
             category: 'Biochemistry',
+            department: 'GENERAL',
             price: '',
             cost: '',
             tat_hours: '',
@@ -182,6 +185,24 @@ function Tests() {
                                     {categories.filter(c => c !== 'ALL').map(cat => (
                                         <option key={cat} value={cat}>{cat}</option>
                                     ))}
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Department / Modality *</label>
+                                <select
+                                    className="form-select"
+                                    value={formData.department}
+                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                    required
+                                >
+                                    <option value="GENERAL">General / Pathology</option>
+                                    <option value="MRI">MRI</option>
+                                    <option value="CT">CT Scan</option>
+                                    <option value="USG">Ultrasound (USG)</option>
+                                    <option value="XRAY">X-Ray</option>
+                                    <option value="ECG">ECG</option>
+                                    <option value="RADIOLOGY">Radiology (General)</option>
                                 </select>
                             </div>
                         </div>
@@ -399,6 +420,7 @@ function Tests() {
                                     <th>Code</th>
                                     <th>Test Name</th>
                                     <th>Category</th>
+                                    <th>Dept</th>
                                     <th>Price</th>
                                     <th>Cost</th>
                                     <th>Margin</th>
@@ -420,6 +442,13 @@ function Tests() {
                                         </td>
                                         <td>
                                             <span className="category-badge">{test.category}</span>
+                                        </td>
+                                        <td>
+                                            <span style={{
+                                                background: test.department === 'GENERAL' ? '#f3f4f6' : '#dbeafe',
+                                                color: test.department === 'GENERAL' ? '#6b7280' : '#1e40af',
+                                                padding: '2px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700
+                                            }}>{test.department || 'GENERAL'}</span>
                                         </td>
                                         <td className="price">₹{parseFloat(test.price).toFixed(2)}</td>
                                         <td className="cost">₹{parseFloat(test.cost).toFixed(2)}</td>

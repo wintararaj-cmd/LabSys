@@ -58,21 +58,17 @@ function Billing() {
         calculateTotals();
     }, [formData.selectedTests, formData.discount_amount, formData.paid_amount]);
 
-    // Filter tests shown based on selected department
+    // Filter tests by their stored department column (exact match)
     const getTestsForDepartment = (dept) => {
+        if (!tests.length) return [];
         if (!dept || dept === 'GENERAL') {
-            // General: hide radiology-specific tests
-            return tests.filter(t => !['Radiology'].includes(t.category));
+            return tests.filter(t => !t.department || t.department === 'GENERAL');
         }
-        const map = {
-            MRI: t => t.category === 'Radiology' && /mri/i.test(t.name + ' ' + (t.code || '')),
-            CT: t => t.category === 'Radiology' && /ct|computed/i.test(t.name + ' ' + (t.code || '')),
-            USG: t => t.category === 'Radiology' && /usg|ultrasound/i.test(t.name + ' ' + (t.code || '')),
-            XRAY: t => t.category === 'Radiology' && /x.?ray|xr/i.test(t.name + ' ' + (t.code || '')),
-            ECG: t => /ecg|electrocardiograph/i.test(t.name + ' ' + (t.category || '')),
-            RADIOLOGY: t => t.category === 'Radiology',
-        };
-        return map[dept] ? tests.filter(map[dept]) : tests;
+        if (dept === 'RADIOLOGY') {
+            // RADIOLOGY (All) — show all non-GENERAL tests
+            return tests.filter(t => t.department && t.department !== 'GENERAL');
+        }
+        return tests.filter(t => t.department === dept);
     };
 
     const filteredTests = getTestsForDepartment(formData.department);
