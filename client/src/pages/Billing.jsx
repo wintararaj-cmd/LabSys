@@ -562,149 +562,150 @@ function Billing() {
                                     </div>
                                 </div>
                             )}
+                        </div>
 
-                            {/* Test Selection */}
-                            <div className="form-group">
-                                <label className="form-label">Select Tests *</label>
-                                <div className="test-grid">
-                                    {tests.map(test => (
-                                        <div
-                                            key={test.id}
-                                            className={`test-card ${formData.selectedTests.find(t => t.id === test.id) ? 'selected' : ''}`}
-                                            onClick={() => handleTestToggle(test)}
-                                        >
-                                            <div className="test-info">
-                                                <h4>{test.name}</h4>
-                                                <p className="test-code">{test.code}</p>
+                        {/* Test Selection */}
+                        <div className="form-group">
+                            <label className="form-label">Select Tests *</label>
+                            <div className="test-grid">
+                                {tests.map(test => (
+                                    <div
+                                        key={test.id}
+                                        className={`test-card ${formData.selectedTests.find(t => t.id === test.id) ? 'selected' : ''}`}
+                                        onClick={() => handleTestToggle(test)}
+                                    >
+                                        <div className="test-info">
+                                            <h4>{test.name}</h4>
+                                            <p className="test-code">{test.code}</p>
+                                        </div>
+                                        <div className="test-price">₹{test.price}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Selected Tests Summary */}
+                        {formData.selectedTests.length > 0 && (
+                            <div className="selected-tests">
+                                <h4>Selected Tests & Samples ({formData.selectedTests.length})</h4>
+                                <div className="selected-tests-grid">
+                                    {formData.selectedTests.map(test => (
+                                        <div key={test.id} className="selected-test-row">
+                                            <div className="test-name-info">
+                                                <strong>{test.name}</strong>
+                                                <span>₹{test.price}</span>
                                             </div>
-                                            <div className="test-price">₹{test.price}</div>
+                                            <div className="sample-id-input">
+                                                <label>Sample ID / Barcode:</label>
+                                                <input
+                                                    type="text"
+                                                    value={test.sampleId}
+                                                    onChange={(e) => handleSampleIdChange(test.id, e.target.value)}
+                                                    placeholder="Barcode"
+                                                />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
+                        )}
 
-                            {/* Selected Tests Summary */}
-                            {formData.selectedTests.length > 0 && (
-                                <div className="selected-tests">
-                                    <h4>Selected Tests & Samples ({formData.selectedTests.length})</h4>
-                                    <div className="selected-tests-grid">
-                                        {formData.selectedTests.map(test => (
-                                            <div key={test.id} className="selected-test-row">
-                                                <div className="test-name-info">
-                                                    <strong>{test.name}</strong>
-                                                    <span>₹{test.price}</span>
-                                                </div>
-                                                <div className="sample-id-input">
-                                                    <label>Sample ID / Barcode:</label>
-                                                    <input
-                                                        type="text"
-                                                        value={test.sampleId}
-                                                        onChange={(e) => handleSampleIdChange(test.id, e.target.value)}
-                                                        placeholder="Barcode"
-                                                    />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Payment Details */}
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Discount Amount</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={formData.discount_amount}
-                                        onChange={(e) => setFormData({ ...formData, discount_amount: e.target.value })}
-                                        min="0"
-                                        step="0.01"
-                                    />
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">Payment Mode</label>
-                                    <select
-                                        className="form-select"
-                                        value={formData.payment_mode}
-                                        onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
-                                    >
-                                        <option value="CASH">Cash</option>
-                                        <option value="UPI">UPI (Quick Scan)</option>
-                                        <option value="GPAY">Google Pay</option>
-                                        <option value="PHONEPE">PhonePe</option>
-                                        <option value="PAYTM">Paytm</option>
-                                        <option value="CARD">Credit/Debit Card</option>
-                                        <option value="ONLINE">Online Transfer</option>
-                                    </select>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">Amount Paid</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        value={formData.paid_amount}
-                                        onChange={(e) => setFormData({ ...formData, paid_amount: e.target.value })}
-                                        min="0"
-                                        step="0.01"
-                                    />
-                                </div>
+                        {/* Payment Details */}
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Discount Amount</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    value={formData.discount_amount}
+                                    onChange={(e) => setFormData({ ...formData, discount_amount: e.target.value })}
+                                    min="0"
+                                    step="0.01"
+                                />
                             </div>
 
-                            {/* Calculation Summary */}
-                            <div className="calculation-summary">
-                                <div className="calc-row">
-                                    <span>Total Amount:</span>
-                                    <span className="amount">₹{calculations.total_amount.toFixed(2)}</span>
-                                </div>
-                                <div className="calc-row">
-                                    <span>Discount:</span>
-                                    <span className="amount discount">-₹{calculations.discount_amount.toFixed(2)}</span>
-                                </div>
-                                <div className="calc-row">
-                                    <span>Tax (GST):</span>
-                                    <span className="amount">₹{calculations.tax_amount.toFixed(2)}</span>
-                                </div>
-                                {calculations.tax_amount > 0 && (
-                                    <>
-                                        <div className="calc-row sub-tax">
-                                            <span>CGST ({(calculations.tax_amount / calculations.total_amount * 50).toFixed(1)}%):</span>
-                                            <span className="amount">₹{calculations.cgst.toFixed(2)}</span>
-                                        </div>
-                                        <div className="calc-row sub-tax">
-                                            <span>SGST ({(calculations.tax_amount / calculations.total_amount * 50).toFixed(1)}%):</span>
-                                            <span className="amount">₹{calculations.sgst.toFixed(2)}</span>
-                                        </div>
-                                    </>
-                                )}
-                                <div className="calc-row total">
-                                    <span>Net Amount:</span>
-                                    <span className="amount">₹{calculations.net_amount.toFixed(2)}</span>
-                                </div>
-                                <div className="calc-row">
-                                    <span>Paid Amount:</span>
-                                    <span className="amount">₹{formData.paid_amount || 0}</span>
-                                </div>
-                                <div className="calc-row balance">
-                                    <span>Balance Due:</span>
-                                    <span className="amount">₹{calculations.balance_amount.toFixed(2)}</span>
-                                </div>
-                            </div>
-
-                            <div className="form-actions">
-                                <button type="submit" className="btn btn-primary">
-                                    Create Invoice
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    onClick={() => setShowForm(false)}
+                            <div className="form-group">
+                                <label className="form-label">Payment Mode</label>
+                                <select
+                                    className="form-select"
+                                    value={formData.payment_mode}
+                                    onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
                                 >
-                                    Cancel
-                                </button>
+                                    <option value="CASH">Cash</option>
+                                    <option value="UPI">UPI (Quick Scan)</option>
+                                    <option value="GPAY">Google Pay</option>
+                                    <option value="PHONEPE">PhonePe</option>
+                                    <option value="PAYTM">Paytm</option>
+                                    <option value="CARD">Credit/Debit Card</option>
+                                    <option value="ONLINE">Online Transfer</option>
+                                </select>
                             </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Amount Paid</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    value={formData.paid_amount}
+                                    onChange={(e) => setFormData({ ...formData, paid_amount: e.target.value })}
+                                    min="0"
+                                    step="0.01"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Calculation Summary */}
+                        <div className="calculation-summary">
+                            <div className="calc-row">
+                                <span>Total Amount:</span>
+                                <span className="amount">₹{calculations.total_amount.toFixed(2)}</span>
+                            </div>
+                            <div className="calc-row">
+                                <span>Discount:</span>
+                                <span className="amount discount">-₹{calculations.discount_amount.toFixed(2)}</span>
+                            </div>
+                            <div className="calc-row">
+                                <span>Tax (GST):</span>
+                                <span className="amount">₹{calculations.tax_amount.toFixed(2)}</span>
+                            </div>
+                            {calculations.tax_amount > 0 && (
+                                <>
+                                    <div className="calc-row sub-tax">
+                                        <span>CGST ({(calculations.tax_amount / calculations.total_amount * 50).toFixed(1)}%):</span>
+                                        <span className="amount">₹{calculations.cgst.toFixed(2)}</span>
+                                    </div>
+                                    <div className="calc-row sub-tax">
+                                        <span>SGST ({(calculations.tax_amount / calculations.total_amount * 50).toFixed(1)}%):</span>
+                                        <span className="amount">₹{calculations.sgst.toFixed(2)}</span>
+                                    </div>
+                                </>
+                            )}
+                            <div className="calc-row total">
+                                <span>Net Amount:</span>
+                                <span className="amount">₹{calculations.net_amount.toFixed(2)}</span>
+                            </div>
+                            <div className="calc-row">
+                                <span>Paid Amount:</span>
+                                <span className="amount">₹{formData.paid_amount || 0}</span>
+                            </div>
+                            <div className="calc-row balance">
+                                <span>Balance Due:</span>
+                                <span className="amount">₹{calculations.balance_amount.toFixed(2)}</span>
+                            </div>
+                        </div>
+
+                        <div className="form-actions">
+                            <button type="submit" className="btn btn-primary">
+                                Create Invoice
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setShowForm(false)}
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </form>
                 </div>
             )}
