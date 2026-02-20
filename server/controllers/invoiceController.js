@@ -2,6 +2,7 @@ const { query } = require('../config/db');
 const { getAccountingYearInfo } = require('../utils/dateHelper');
 const { logAuditEvent } = require('../services/auditService');
 const { notifyInvoiceCreated } = require('../services/notificationService');
+const { calculateCommission } = require('../services/commissionService');
 
 /**
  * Generate unique invoice number based on Accounting Year
@@ -43,7 +44,10 @@ const createInvoice = async (req, res) => {
         const {
             patientId,
             doctorId,
-            tests, // Array of { testId, price, gstPercentage }
+            introducerId,     // FK to doctors — the actual introducer doctor
+            introducerRaw,    // Raw string: 'SELF' if patient is self-referred
+            department,       // 'MRI' | 'GENERAL' | 'RADIOLOGY' etc.
+            tests,
             discountAmount = 0,
             paymentMode,
             paidAmount = 0,
@@ -55,6 +59,9 @@ const createInvoice = async (req, res) => {
         // Validation
         if (!patientId || !tests || tests.length === 0) {
             return res.status(400).json({ error: 'Patient and tests are required' });
+        }
+        if (!doctorId) {
+            return res.status(400).json({ error: 'Referring Doctor is mandatory' });
         }
 
         // Calculate totals
@@ -71,6 +78,16 @@ const createInvoice = async (req, res) => {
         const balanceAmount = netAmount - paidAmount;
         const paymentStatus = balanceAmount === 0 ? 'PAID' : (paidAmount > 0 ? 'PARTIAL' : 'PENDING');
 
+        // Calculate commission
+        const commission = await calculateCommission({
+            tenantId,
+            department: department || 'GENERAL',
+            doctorId: parseInt(doctorId),
+            introducerId: introducerId ? parseInt(introducerId) : null,
+            introducerRaw: introducerRaw || '',
+            netAmount
+        });
+
         // Generate invoice number
         const invoiceNumber = await generateInvoiceNumber(tenantId, branchId);
 
@@ -85,13 +102,16 @@ const createInvoice = async (req, res) => {
                 `INSERT INTO invoices (
           tenant_id, branch_id, patient_id, doctor_id, invoice_number,
           total_amount, discount_amount, tax_amount, net_amount,
-          paid_amount, balance_amount, payment_status, payment_mode
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          paid_amount, balance_amount, payment_status, payment_mode,
+          introducer_id, department, commission_mode, doctor_commission, introducer_commission
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         RETURNING *`,
                 [
                     tenantId, branchId, patientId, doctorId, invoiceNumber,
                     totalAmount, discountAmount, totalTax, netAmount,
-                    paidAmount, balanceAmount, paymentStatus, paymentMode
+                    paidAmount, balanceAmount, paymentStatus, paymentMode,
+                    commission.introducerId, department || 'GENERAL',
+                    commission.mode, commission.doctorCommission, commission.introducerCommission
                 ]
             );
 

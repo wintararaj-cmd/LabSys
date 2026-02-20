@@ -14,6 +14,9 @@ function Billing() {
     const [formData, setFormData] = useState({
         patient_id: '',
         doctor_id: '',
+        introducer_id: '',      // FK to a doctor record
+        introducer_raw: '',     // 'SELF' or '' when no introducer doctor selected
+        department: 'GENERAL',
         discount_amount: 0,
         payment_mode: 'CASH',
         paid_amount: 0,
@@ -43,6 +46,9 @@ function Billing() {
         balance_amount: 0
     });
 
+    const [commissionPreview, setCommissionPreview] = useState(null);
+    const [commissionLoading, setCommissionLoading] = useState(false);
+
     useEffect(() => {
         loadData();
     }, []);
@@ -51,24 +57,50 @@ function Billing() {
         calculateTotals();
     }, [formData.selectedTests, formData.discount_amount, formData.paid_amount]);
 
+    // Live commission preview whenever relevant fields change
+    useEffect(() => {
+        const timer = setTimeout(() => fetchCommissionPreview(), 600);
+        return () => clearTimeout(timer);
+    }, [formData.doctor_id, formData.introducer_id, formData.introducer_raw, formData.department, calculations.net_amount]);
+
     const loadData = async () => {
         try {
             setLoading(true);
-            const [invoicesRes, patientsRes, testsRes, doctorsRes] = await Promise.all([
+            const [invoicesRes, testsRes, doctorsRes] = await Promise.all([
                 invoiceAPI.getAll({ limit: 10 }),
-                patientAPI.getAll({ limit: 100 }),
                 testAPI.getAll(),
                 doctorAPI.getAll()
             ]);
 
             setInvoices(invoicesRes.data.invoices || []);
-            // setPatients(patientsRes.data.patients || []); // We'll use search instead
             setTests(testsRes.data.tests || []);
             setDoctors(doctorsRes.data.doctors || []);
         } catch (err) {
             console.error('Failed to load data:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchCommissionPreview = async () => {
+        if (!formData.doctor_id || calculations.net_amount <= 0) {
+            setCommissionPreview(null);
+            return;
+        }
+        try {
+            setCommissionLoading(true);
+            const res = await invoiceAPI.previewCommission({
+                doctorId: formData.doctor_id,
+                introducerId: formData.introducer_id || null,
+                introducerRaw: formData.introducer_raw,
+                department: formData.department,
+                netAmount: calculations.net_amount
+            });
+            setCommissionPreview(res.data);
+        } catch (err) {
+            console.error('Commission preview failed:', err);
+        } finally {
+            setCommissionLoading(false);
         }
     };
 
@@ -169,7 +201,10 @@ function Billing() {
             alert('Please select a patient');
             return;
         }
-
+        if (!formData.doctor_id) {
+            alert('Referring Doctor is mandatory. Please select a doctor.');
+            return;
+        }
         if (formData.selectedTests.length === 0) {
             alert('Please select at least one test');
             return;
@@ -178,7 +213,10 @@ function Billing() {
         try {
             const invoiceData = {
                 patientId: parseInt(formData.patient_id),
-                doctorId: formData.doctor_id ? parseInt(formData.doctor_id) : null,
+                doctorId: parseInt(formData.doctor_id),
+                introducerId: formData.introducer_id ? parseInt(formData.introducer_id) : null,
+                introducerRaw: formData.introducer_raw,
+                department: formData.department,
                 tests: formData.selectedTests.map(t => ({
                     testId: t.id,
                     price: t.price,
@@ -204,12 +242,16 @@ function Billing() {
         setFormData({
             patient_id: '',
             doctor_id: '',
+            introducer_id: '',
+            introducer_raw: '',
+            department: 'GENERAL',
             discount_amount: 0,
             payment_mode: 'CASH',
             paid_amount: 0,
             selectedTests: []
         });
         setSelectedPatient(null);
+        setCommissionPreview(null);
     };
 
     const getPaymentStatusBadge = (status) => {
@@ -424,164 +466,245 @@ function Billing() {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Referring Doctor</label>
+                                <label className="form-label">Referring Doctor <span style={{ color: '#ef4444' }}>*</span></label>
                                 <select
-                                    className="form-select"
+                                    className={`form-select ${!formData.doctor_id ? 'input-required' : ''}`}
                                     value={formData.doctor_id}
                                     onChange={(e) => setFormData({ ...formData, doctor_id: e.target.value })}
+                                    required
                                 >
-                                    <option value="">No Referral</option>
-                                    {doctors.map(doctor => (
+                                    <option value="">-- Select Referring Doctor --</option>
+                                    {doctors.filter(d => !d.is_introducer).map(doctor => (
                                         <option key={doctor.id} value={doctor.id}>
-                                            {doctor.name} - {doctor.specialization}
+                                            {doctor.name} {doctor.specialization ? `(${doctor.specialization})` : ''}
                                         </option>
                                     ))}
                                 </select>
                             </div>
-                        </div>
 
-                        {/* Test Selection */}
-                        <div className="form-group">
-                            <label className="form-label">Select Tests *</label>
-                            <div className="test-grid">
-                                {tests.map(test => (
-                                    <div
-                                        key={test.id}
-                                        className={`test-card ${formData.selectedTests.find(t => t.id === test.id) ? 'selected' : ''}`}
-                                        onClick={() => handleTestToggle(test)}
-                                    >
-                                        <div className="test-info">
-                                            <h4>{test.name}</h4>
-                                            <p className="test-code">{test.code}</p>
-                                        </div>
-                                        <div className="test-price">₹{test.price}</div>
-                                    </div>
-                                ))}
+                            <div className="form-group">
+                                <label className="form-label">Department / Modality</label>
+                                <select
+                                    className="form-select"
+                                    value={formData.department}
+                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                >
+                                    <option value="GENERAL">General / Pathology</option>
+                                    <option value="MRI">MRI</option>
+                                    <option value="CT">CT Scan</option>
+                                    <option value="USG">Ultrasound (USG)</option>
+                                    <option value="XRAY">X-Ray</option>
+                                    <option value="ECG">ECG</option>
+                                    <option value="RADIOLOGY">Radiology</option>
+                                </select>
                             </div>
                         </div>
 
-                        {/* Selected Tests Summary */}
-                        {formData.selectedTests.length > 0 && (
-                            <div className="selected-tests">
-                                <h4>Selected Tests & Samples ({formData.selectedTests.length})</h4>
-                                <div className="selected-tests-grid">
-                                    {formData.selectedTests.map(test => (
-                                        <div key={test.id} className="selected-test-row">
-                                            <div className="test-name-info">
-                                                <strong>{test.name}</strong>
-                                                <span>₹{test.price}</span>
+                        {/* Introducer Row */}
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Introducer</label>
+                                <select
+                                    className="form-select"
+                                    value={formData.introducer_id}
+                                    onChange={(e) => setFormData({
+                                        ...formData,
+                                        introducer_id: e.target.value,
+                                        introducer_raw: e.target.value ? '' : formData.introducer_raw
+                                    })}
+                                >
+                                    <option value="">-- None / SELF --</option>
+                                    {doctors.map(doctor => (
+                                        <option key={doctor.id} value={doctor.id}>
+                                            {doctor.name} {doctor.specialization ? `(${doctor.specialization})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                <small style={{ color: '#6b7280', fontSize: '11px' }}>
+                                    Leave blank if patient is self-referred or no introducer
+                                </small>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Introducer Type</label>
+                                <select
+                                    className="form-select"
+                                    value={formData.introducer_id ? 'DOCTOR' : formData.introducer_raw}
+                                    disabled={!!formData.introducer_id}
+                                    onChange={(e) => setFormData({ ...formData, introducer_raw: e.target.value })}
+                                >
+                                    <option value="">None</option>
+                                    <option value="SELF">SELF (Patient is self-referred)</option>
+                                </select>
+                            </div>
+
+                            {/* Live Commission Preview */}
+                            {formData.doctor_id && (
+                                <div className="form-group" style={{ display: 'flex', alignItems: 'center' }}>
+                                    <div className="commission-preview-box">
+                                        {commissionLoading ? (
+                                            <span style={{ color: '#9ca3af', fontSize: '12px' }}>Calculating...</span>
+                                        ) : commissionPreview ? (
+                                            <>
+                                                <div className="comm-mode-badge">{commissionPreview.mode}</div>
+                                                <div className="comm-detail">
+                                                    {commissionPreview.mode === 'SPLIT' ? (
+                                                        <><span>👨‍⚕️ Dr: ₹{commissionPreview.doctorCommission}</span><span>🤝 Intro: ₹{commissionPreview.introducerCommission}</span></>
+                                                    ) : commissionPreview.mode === 'DOCTOR' ? (
+                                                        <span>👨‍⚕️ Doctor gets ₹{commissionPreview.doctorCommission} ({commissionPreview.commissionPct}%)</span>
+                                                    ) : commissionPreview.mode === 'INTRODUCER' ? (
+                                                        <span>🤝 Introducer gets ₹{commissionPreview.introducerCommission}</span>
+                                                    ) : null}
+                                                </div>
+                                                <div className="comm-summary" title={commissionPreview.summary}>ℹ️ {commissionPreview.summary}</div>
+                                            </>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Test Selection */}
+                            <div className="form-group">
+                                <label className="form-label">Select Tests *</label>
+                                <div className="test-grid">
+                                    {tests.map(test => (
+                                        <div
+                                            key={test.id}
+                                            className={`test-card ${formData.selectedTests.find(t => t.id === test.id) ? 'selected' : ''}`}
+                                            onClick={() => handleTestToggle(test)}
+                                        >
+                                            <div className="test-info">
+                                                <h4>{test.name}</h4>
+                                                <p className="test-code">{test.code}</p>
                                             </div>
-                                            <div className="sample-id-input">
-                                                <label>Sample ID / Barcode:</label>
-                                                <input
-                                                    type="text"
-                                                    value={test.sampleId}
-                                                    onChange={(e) => handleSampleIdChange(test.id, e.target.value)}
-                                                    placeholder="Barcode"
-                                                />
-                                            </div>
+                                            <div className="test-price">₹{test.price}</div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
-                        )}
 
-                        {/* Payment Details */}
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Discount Amount</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={formData.discount_amount}
-                                    onChange={(e) => setFormData({ ...formData, discount_amount: e.target.value })}
-                                    min="0"
-                                    step="0.01"
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Payment Mode</label>
-                                <select
-                                    className="form-select"
-                                    value={formData.payment_mode}
-                                    onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
-                                >
-                                    <option value="CASH">Cash</option>
-                                    <option value="UPI">UPI (Quick Scan)</option>
-                                    <option value="GPAY">Google Pay</option>
-                                    <option value="PHONEPE">PhonePe</option>
-                                    <option value="PAYTM">Paytm</option>
-                                    <option value="CARD">Credit/Debit Card</option>
-                                    <option value="ONLINE">Online Transfer</option>
-                                </select>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Amount Paid</label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    value={formData.paid_amount}
-                                    onChange={(e) => setFormData({ ...formData, paid_amount: e.target.value })}
-                                    min="0"
-                                    step="0.01"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Calculation Summary */}
-                        <div className="calculation-summary">
-                            <div className="calc-row">
-                                <span>Total Amount:</span>
-                                <span className="amount">₹{calculations.total_amount.toFixed(2)}</span>
-                            </div>
-                            <div className="calc-row">
-                                <span>Discount:</span>
-                                <span className="amount discount">-₹{calculations.discount_amount.toFixed(2)}</span>
-                            </div>
-                            <div className="calc-row">
-                                <span>Tax (GST):</span>
-                                <span className="amount">₹{calculations.tax_amount.toFixed(2)}</span>
-                            </div>
-                            {calculations.tax_amount > 0 && (
-                                <>
-                                    <div className="calc-row sub-tax">
-                                        <span>CGST ({(calculations.tax_amount / calculations.total_amount * 50).toFixed(1)}%):</span>
-                                        <span className="amount">₹{calculations.cgst.toFixed(2)}</span>
+                            {/* Selected Tests Summary */}
+                            {formData.selectedTests.length > 0 && (
+                                <div className="selected-tests">
+                                    <h4>Selected Tests & Samples ({formData.selectedTests.length})</h4>
+                                    <div className="selected-tests-grid">
+                                        {formData.selectedTests.map(test => (
+                                            <div key={test.id} className="selected-test-row">
+                                                <div className="test-name-info">
+                                                    <strong>{test.name}</strong>
+                                                    <span>₹{test.price}</span>
+                                                </div>
+                                                <div className="sample-id-input">
+                                                    <label>Sample ID / Barcode:</label>
+                                                    <input
+                                                        type="text"
+                                                        value={test.sampleId}
+                                                        onChange={(e) => handleSampleIdChange(test.id, e.target.value)}
+                                                        placeholder="Barcode"
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="calc-row sub-tax">
-                                        <span>SGST ({(calculations.tax_amount / calculations.total_amount * 50).toFixed(1)}%):</span>
-                                        <span className="amount">₹{calculations.sgst.toFixed(2)}</span>
-                                    </div>
-                                </>
+                                </div>
                             )}
-                            <div className="calc-row total">
-                                <span>Net Amount:</span>
-                                <span className="amount">₹{calculations.net_amount.toFixed(2)}</span>
-                            </div>
-                            <div className="calc-row">
-                                <span>Paid Amount:</span>
-                                <span className="amount">₹{formData.paid_amount || 0}</span>
-                            </div>
-                            <div className="calc-row balance">
-                                <span>Balance Due:</span>
-                                <span className="amount">₹{calculations.balance_amount.toFixed(2)}</span>
-                            </div>
-                        </div>
 
-                        <div className="form-actions">
-                            <button type="submit" className="btn btn-primary">
-                                Create Invoice
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={() => setShowForm(false)}
-                            >
-                                Cancel
-                            </button>
-                        </div>
+                            {/* Payment Details */}
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Discount Amount</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={formData.discount_amount}
+                                        onChange={(e) => setFormData({ ...formData, discount_amount: e.target.value })}
+                                        min="0"
+                                        step="0.01"
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Payment Mode</label>
+                                    <select
+                                        className="form-select"
+                                        value={formData.payment_mode}
+                                        onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
+                                    >
+                                        <option value="CASH">Cash</option>
+                                        <option value="UPI">UPI (Quick Scan)</option>
+                                        <option value="GPAY">Google Pay</option>
+                                        <option value="PHONEPE">PhonePe</option>
+                                        <option value="PAYTM">Paytm</option>
+                                        <option value="CARD">Credit/Debit Card</option>
+                                        <option value="ONLINE">Online Transfer</option>
+                                    </select>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Amount Paid</label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        value={formData.paid_amount}
+                                        onChange={(e) => setFormData({ ...formData, paid_amount: e.target.value })}
+                                        min="0"
+                                        step="0.01"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Calculation Summary */}
+                            <div className="calculation-summary">
+                                <div className="calc-row">
+                                    <span>Total Amount:</span>
+                                    <span className="amount">₹{calculations.total_amount.toFixed(2)}</span>
+                                </div>
+                                <div className="calc-row">
+                                    <span>Discount:</span>
+                                    <span className="amount discount">-₹{calculations.discount_amount.toFixed(2)}</span>
+                                </div>
+                                <div className="calc-row">
+                                    <span>Tax (GST):</span>
+                                    <span className="amount">₹{calculations.tax_amount.toFixed(2)}</span>
+                                </div>
+                                {calculations.tax_amount > 0 && (
+                                    <>
+                                        <div className="calc-row sub-tax">
+                                            <span>CGST ({(calculations.tax_amount / calculations.total_amount * 50).toFixed(1)}%):</span>
+                                            <span className="amount">₹{calculations.cgst.toFixed(2)}</span>
+                                        </div>
+                                        <div className="calc-row sub-tax">
+                                            <span>SGST ({(calculations.tax_amount / calculations.total_amount * 50).toFixed(1)}%):</span>
+                                            <span className="amount">₹{calculations.sgst.toFixed(2)}</span>
+                                        </div>
+                                    </>
+                                )}
+                                <div className="calc-row total">
+                                    <span>Net Amount:</span>
+                                    <span className="amount">₹{calculations.net_amount.toFixed(2)}</span>
+                                </div>
+                                <div className="calc-row">
+                                    <span>Paid Amount:</span>
+                                    <span className="amount">₹{formData.paid_amount || 0}</span>
+                                </div>
+                                <div className="calc-row balance">
+                                    <span>Balance Due:</span>
+                                    <span className="amount">₹{calculations.balance_amount.toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <div className="form-actions">
+                                <button type="submit" className="btn btn-primary">
+                                    Create Invoice
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowForm(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                     </form>
                 </div>
             )}

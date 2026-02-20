@@ -199,6 +199,17 @@ async function migrate() {
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     );
 
+                    -- Referral / Introducer commission logic
+                    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS introducer_id INT REFERENCES doctors(id) ON DELETE SET NULL;
+                    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS department VARCHAR(50) DEFAULT 'GENERAL';
+                    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS commission_mode VARCHAR(20) DEFAULT 'DOCTOR'
+                        CHECK (commission_mode IN ('DOCTOR','INTRODUCER','SPLIT','NONE'));
+                    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS doctor_commission DECIMAL(10,2) DEFAULT 0.00;
+                    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS introducer_commission DECIMAL(10,2) DEFAULT 0.00;
+
+                    -- Allow marking a doctor as primary introducer type
+                    ALTER TABLE doctors ADD COLUMN IF NOT EXISTS is_introducer BOOLEAN DEFAULT FALSE;
+
                 `);
                 console.log('Incremental updates applied.');
             } catch (err) {

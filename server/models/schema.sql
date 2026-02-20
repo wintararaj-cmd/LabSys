@@ -65,6 +65,7 @@ CREATE TABLE doctors (
     phone VARCHAR(20),
     email VARCHAR(255),
     commission_percentage DECIMAL(5,2) DEFAULT 0.00,
+    is_introducer BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -124,6 +125,12 @@ CREATE TABLE invoices (
     refund_note TEXT,
     payment_status VARCHAR(20) CHECK (payment_status IN ('PAID', 'PARTIAL', 'PENDING', 'REFUNDED')),
     payment_mode VARCHAR(20), -- CASH, CARD, ONLINE, UPI
+    introducer_id INT REFERENCES doctors(id) ON DELETE SET NULL,
+    department VARCHAR(50) DEFAULT 'GENERAL',
+    commission_mode VARCHAR(20) DEFAULT 'DOCTOR'
+        CHECK (commission_mode IN ('DOCTOR','INTRODUCER','SPLIT','NONE')),
+    doctor_commission DECIMAL(10,2) DEFAULT 0.00,
+    introducer_commission DECIMAL(10,2) DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -352,3 +352,69 @@
 .btn-text.btn-danger:hover {
     background: #fef2f2;
 }
+
+/* ── Commission Preview Box ──────────────────────── */
+.input-required {
+    border-color: #fca5a5 !important;
+    background: #fff5f5;
+}
+
+.commission-preview-box {
+    background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+    border: 1px solid #c7d2fe;
+    border-radius: 10px;
+    padding: 12px 14px;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.comm-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    background: #6366f1;
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    width: fit-content;
+    text-transform: uppercase;
+}
+
+.comm-mode-badge.SPLIT {
+    background: #8b5cf6;
+}
+
+.comm-mode-badge.INTRODUCER {
+    background: #f59e0b;
+    color: #1c1917;
+}
+
+.comm-mode-badge.NONE {
+    background: #9ca3af;
+}
+
+.comm-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #3730a3;
+}
+
+.comm-summary {
+    font-size: 11px;
+    color: #6366f1;
+    line-height: 1.4;
+    cursor: help;
+    border-top: 1px solid #c7d2fe;
+    padding-top: 5px;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
