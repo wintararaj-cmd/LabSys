@@ -58,6 +58,25 @@ function Billing() {
         calculateTotals();
     }, [formData.selectedTests, formData.discount_amount, formData.paid_amount]);
 
+    // Filter tests shown based on selected department
+    const getTestsForDepartment = (dept) => {
+        if (!dept || dept === 'GENERAL') {
+            // General: hide radiology-specific tests
+            return tests.filter(t => !['Radiology'].includes(t.category));
+        }
+        const map = {
+            MRI: t => t.category === 'Radiology' && /mri/i.test(t.name + ' ' + (t.code || '')),
+            CT: t => t.category === 'Radiology' && /ct|computed/i.test(t.name + ' ' + (t.code || '')),
+            USG: t => t.category === 'Radiology' && /usg|ultrasound/i.test(t.name + ' ' + (t.code || '')),
+            XRAY: t => t.category === 'Radiology' && /x.?ray|xr/i.test(t.name + ' ' + (t.code || '')),
+            ECG: t => /ecg|electrocardiograph/i.test(t.name + ' ' + (t.category || '')),
+            RADIOLOGY: t => t.category === 'Radiology',
+        };
+        return map[dept] ? tests.filter(map[dept]) : tests;
+    };
+
+    const filteredTests = getTestsForDepartment(formData.department);
+
     // Live commission preview whenever relevant fields change
     useEffect(() => {
         const timer = setTimeout(() => fetchCommissionPreview(), 600);
@@ -490,7 +509,11 @@ function Billing() {
                                 <select
                                     className="form-select"
                                     value={formData.department}
-                                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                    onChange={(e) => setFormData({
+                                        ...formData,
+                                        department: e.target.value,
+                                        selectedTests: []   // clear tests on dept change
+                                    })}
                                 >
                                     <option value="GENERAL">General / Pathology</option>
                                     <option value="MRI">MRI</option>
@@ -498,7 +521,7 @@ function Billing() {
                                     <option value="USG">Ultrasound (USG)</option>
                                     <option value="XRAY">X-Ray</option>
                                     <option value="ECG">ECG</option>
-                                    <option value="RADIOLOGY">Radiology</option>
+                                    <option value="RADIOLOGY">Radiology (All)</option>
                                 </select>
                             </div>
                         </div>
@@ -587,22 +610,37 @@ function Billing() {
 
                         {/* Test Selection */}
                         <div className="form-group">
-                            <label className="form-label">Select Tests *</label>
-                            <div className="test-grid">
-                                {tests.map(test => (
-                                    <div
-                                        key={test.id}
-                                        className={`test-card ${formData.selectedTests.find(t => t.id === test.id) ? 'selected' : ''}`}
-                                        onClick={() => handleTestToggle(test)}
-                                    >
-                                        <div className="test-info">
-                                            <h4>{test.name}</h4>
-                                            <p className="test-code">{test.code}</p>
+                            <label className="form-label">
+                                Select Tests *
+                                <span style={{ fontSize: 11, fontWeight: 400, color: '#6b7280', marginLeft: 8 }}>
+                                    Showing {filteredTests.length} test{filteredTests.length !== 1 ? 's' : ''} for {formData.department}
+                                </span>
+                            </label>
+                            {filteredTests.length === 0 ? (
+                                <div style={{
+                                    padding: '24px', textAlign: 'center', color: '#6b7280',
+                                    border: '2px dashed #e5e7eb', borderRadius: 10, marginTop: 8
+                                }}>
+                                    No tests configured for <strong>{formData.department}</strong> department yet.
+                                    <br /><small>Add tests in Test Master with the matching category.</small>
+                                </div>
+                            ) : (
+                                <div className="test-grid">
+                                    {filteredTests.map(test => (
+                                        <div
+                                            key={test.id}
+                                            className={`test-card ${formData.selectedTests.find(t => t.id === test.id) ? 'selected' : ''}`}
+                                            onClick={() => handleTestToggle(test)}
+                                        >
+                                            <div className="test-info">
+                                                <h4>{test.name}</h4>
+                                                <p className="test-code">{test.code}</p>
+                                            </div>
+                                            <div className="test-price">₹{test.price}</div>
                                         </div>
-                                        <div className="test-price">₹{test.price}</div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Selected Tests Summary */}
