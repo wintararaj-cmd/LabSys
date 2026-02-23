@@ -40,6 +40,7 @@ export const authAPI = {
     login: (email, password) => api.post('/auth/login', { email, password }),
     register: (data) => api.post('/auth/register', data),
     changePassword: (data) => api.put('/auth/change-password', data),
+    closeAllSessions: () => api.post('/auth/close-all-sessions'),
 };
 
 // Patient API

@@ -210,7 +210,7 @@ async function migrate() {
                     -- Allow marking a doctor as primary introducer type
                     ALTER TABLE doctors ADD COLUMN IF NOT EXISTS is_introducer BOOLEAN DEFAULT FALSE;
 
-                    -- Department/Modality on tests (for billing form filtering)
+                     -- Department/Modality on tests (for billing form filtering)
                     ALTER TABLE tests ADD COLUMN IF NOT EXISTS department VARCHAR(50) DEFAULT 'GENERAL';
 
                     -- Back-fill existing radiology tests based on name/code patterns
@@ -220,6 +220,9 @@ async function migrate() {
                     UPDATE tests SET department = 'XRAY'     WHERE department = 'GENERAL' AND (name ILIKE '%x-ray%' OR name ILIKE '%xray%' OR code ILIKE 'xr%');
                     UPDATE tests SET department = 'ECG'      WHERE department = 'GENERAL' AND (name ILIKE '%ecg%');
                     UPDATE tests SET department = 'RADIOLOGY' WHERE department = 'GENERAL' AND category ILIKE '%radiology%';
+
+                    -- Session invalidation: close all active sessions for a user
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS sessions_invalidated_at TIMESTAMP;
 
                 `);
                 console.log('Incremental updates applied.');

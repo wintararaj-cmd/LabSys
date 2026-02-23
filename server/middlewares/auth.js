@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
+const { query } = require('../config/db');
 
 /**
  * Middleware to verify JWT token and attach user to request
  */
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
     try {
         // Get token from header
         const authHeader = req.headers.authorization;
@@ -14,8 +15,24 @@ const verifyToken = (req, res, next) => {
 
         const token = authHeader.split(' ')[1];
 
-        // Verify token
+        // Verify token signature & expiry
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Check if all sessions have been invalidated after this token was issued
+        const result = await query(
+            'SELECT sessions_invalidated_at FROM users WHERE id = $1',
+            [decoded.userId]
+        );
+
+        if (result.rows.length > 0) {
+            const { sessions_invalidated_at } = result.rows[0];
+            if (sessions_invalidated_at) {
+                const tokenIssuedAt = new Date(decoded.iat * 1000);
+                if (tokenIssuedAt < new Date(sessions_invalidated_at)) {
+                    return res.status(401).json({ error: 'Session has been invalidated. Please log in again.' });
+                }
+            }
+        }
 
         // Attach user info to request
         req.user = {

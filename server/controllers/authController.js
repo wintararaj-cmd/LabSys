@@ -230,18 +230,38 @@ const changePassword = async (req, res) => {
             return res.status(401).json({ error: 'Current password is incorrect' });
         }
 
-        // Hash new password and update
+        // Hash new password and update, and invalidate all existing sessions
         const newHash = await bcrypt.hash(newPassword, 10);
         await query(
-            'UPDATE users SET password_hash = $1 WHERE id = $2',
+            'UPDATE users SET password_hash = $1, sessions_invalidated_at = NOW() WHERE id = $2',
             [newHash, userId]
         );
 
-        res.json({ message: 'Password changed successfully' });
+        res.json({ message: 'Password changed successfully. All other sessions have been logged out.' });
 
     } catch (error) {
         console.error('Change password error:', error);
         res.status(500).json({ error: 'Failed to change password' });
+    }
+};
+
+/**
+ * Close all active sessions for the authenticated user
+ */
+const closeAllSessions = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        await query(
+            'UPDATE users SET sessions_invalidated_at = NOW() WHERE id = $1',
+            [userId]
+        );
+
+        res.json({ message: 'All sessions have been closed. Please log in again.' });
+
+    } catch (error) {
+        console.error('Close all sessions error:', error);
+        res.status(500).json({ error: 'Failed to close sessions' });
     }
 };
 
@@ -250,4 +270,5 @@ module.exports = {
     login,
     refreshToken,
     changePassword,
+    closeAllSessions,
 };

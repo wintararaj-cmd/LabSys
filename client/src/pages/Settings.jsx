@@ -5,7 +5,7 @@ import api from '../services/api';
 import './Settings.css';
 
 const Settings = () => {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const [activeTab, setActiveTab] = useState('lab');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
@@ -54,6 +54,9 @@ const Settings = () => {
     const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
     const [pwLoading, setPwLoading] = useState(false);
     const [pwMessage, setPwMessage] = useState({ type: '', text: '' });
+
+    // Close all sessions state
+    const [sessionsLoading, setSessionsLoading] = useState(false);
 
     useEffect(() => {
         setLabSettings({
@@ -222,6 +225,20 @@ const Settings = () => {
             setPwMessage({ type: 'error', text: error.response?.data?.error || 'Failed to change password.' });
         } finally {
             setPwLoading(false);
+        }
+    };
+
+    const handleCloseAllSessions = async () => {
+        if (!window.confirm('This will log you out from all devices including this one. Continue?')) return;
+        try {
+            setSessionsLoading(true);
+            await authAPI.closeAllSessions();
+            setPwMessage({ type: 'success', text: '✅ All sessions closed. Logging you out...' });
+            setTimeout(() => logout(), 2000);
+        } catch (error) {
+            setPwMessage({ type: 'error', text: error.response?.data?.error || 'Failed to close sessions.' });
+        } finally {
+            setSessionsLoading(false);
         }
     };
 
@@ -550,6 +567,29 @@ const Settings = () => {
                                 <div className="info-box blue" style={{ marginTop: '24px' }}>
                                     <h4>Session Security</h4>
                                     <p>Your session is stored in the browser's session storage. Closing the browser will automatically log you out for security.</p>
+                                </div>
+
+                                <div className="info-box" style={{ marginTop: '24px', borderLeft: '4px solid #e74c3c', background: '#fff5f5' }}>
+                                    <h4 style={{ color: '#e74c3c' }}>⚠️ Danger Zone</h4>
+                                    <p style={{ marginBottom: '12px' }}>Sign out from <strong>all devices and browsers</strong> that are currently logged in with your account. This is useful if you suspect unauthorised access.</p>
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseAllSessions}
+                                        disabled={sessionsLoading}
+                                        style={{
+                                            background: '#e74c3c',
+                                            color: '#fff',
+                                            border: 'none',
+                                            padding: '8px 18px',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontWeight: '600',
+                                            fontSize: '13px',
+                                            opacity: sessionsLoading ? 0.7 : 1
+                                        }}
+                                    >
+                                        {sessionsLoading ? 'Closing...' : '🔴 Close All Active Sessions'}
+                                    </button>
                                 </div>
                             </div>
                         </div>

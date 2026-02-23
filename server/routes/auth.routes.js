@@ -10,5 +10,6 @@ router.post('/refresh-token', authController.refreshToken);
 
 // Protected routes (requires valid JWT)
 router.put('/change-password', verifyToken, tenantGuard, authController.changePassword);
+router.post('/close-all-sessions', verifyToken, tenantGuard, authController.closeAllSessions);
 
 module.exports = router;
