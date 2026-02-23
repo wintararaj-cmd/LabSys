@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { backupAPI } from '../services/api';
+import { backupAPI, authAPI } from '../services/api';
 import api from '../services/api';
 import './Settings.css';
 
@@ -49,6 +49,11 @@ const Settings = () => {
     const [testChannel, setTestChannel] = useState('SMS');
     const [notifLogs, setNotifLogs] = useState([]);
     const [notifLogsLoading, setNotifLogsLoading] = useState(false);
+
+    // Change password state
+    const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    const [pwLoading, setPwLoading] = useState(false);
+    const [pwMessage, setPwMessage] = useState({ type: '', text: '' });
 
     useEffect(() => {
         setLabSettings({
@@ -192,6 +197,32 @@ const Settings = () => {
             }
         };
         reader.readAsText(file);
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        setPwMessage({ type: '', text: '' });
+
+        if (pwForm.newPassword !== pwForm.confirmPassword) {
+            return setPwMessage({ type: 'error', text: 'New passwords do not match.' });
+        }
+        if (pwForm.newPassword.length < 6) {
+            return setPwMessage({ type: 'error', text: 'New password must be at least 6 characters.' });
+        }
+
+        try {
+            setPwLoading(true);
+            await authAPI.changePassword({
+                currentPassword: pwForm.currentPassword,
+                newPassword: pwForm.newPassword,
+            });
+            setPwMessage({ type: 'success', text: '✅ Password changed successfully!' });
+            setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        } catch (error) {
+            setPwMessage({ type: 'error', text: error.response?.data?.error || 'Failed to change password.' });
+        } finally {
+            setPwLoading(false);
+        }
     };
 
     return (
@@ -457,10 +488,69 @@ const Settings = () => {
 
                     {activeTab === 'security' && (
                         <div className="tab-pane">
-                            <h3>Security &amp; Roles</h3>
-                            <p>Configure password policies and role-based access control.</p>
-                            <div className="empty-state">
-                                <p>Role management is currently handled in the "Branches &amp; Staff" section.</p>
+                            <h3>🔒 Security &amp; Password</h3>
+                            <p style={{ color: '#7f8c8d', marginBottom: '20px', fontSize: '13px' }}>
+                                Update your account password. You will need your current password to make this change.
+                            </p>
+
+                            <div style={{ maxWidth: '460px' }}>
+                                {pwMessage.text && (
+                                    <div className={`alert alert-${pwMessage.type}`} style={{ marginBottom: '16px' }}>
+                                        {pwMessage.text}
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleChangePassword}>
+                                    <div className="form-group">
+                                        <label className="form-label">Current Password</label>
+                                        <input
+                                            id="current-password"
+                                            type="password"
+                                            className="form-input"
+                                            placeholder="Enter current password"
+                                            value={pwForm.currentPassword}
+                                            onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">New Password</label>
+                                        <input
+                                            id="new-password"
+                                            type="password"
+                                            className="form-input"
+                                            placeholder="Min. 6 characters"
+                                            value={pwForm.newPassword}
+                                            onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Confirm New Password</label>
+                                        <input
+                                            id="confirm-password"
+                                            type="password"
+                                            className="form-input"
+                                            placeholder="Re-enter new password"
+                                            value={pwForm.confirmPassword}
+                                            onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary"
+                                        disabled={pwLoading}
+                                        style={{ marginTop: '8px' }}
+                                    >
+                                        {pwLoading ? 'Changing...' : '🔑 Change Password'}
+                                    </button>
+                                </form>
+
+                                <div className="info-box blue" style={{ marginTop: '24px' }}>
+                                    <h4>Session Security</h4>
+                                    <p>Your session is stored in the browser's session storage. Closing the browser will automatically log you out for security.</p>
+                                </div>
                             </div>
                         </div>
                     )}

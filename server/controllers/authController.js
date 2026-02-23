@@ -196,8 +196,58 @@ const refreshToken = async (req, res) => {
     }
 };
 
+/**
+ * Change password for the authenticated user
+ */
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const userId = req.user.userId;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Current password and new password are required' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'New password must be at least 6 characters' });
+        }
+
+        // Fetch current password hash
+        const result = await query(
+            'SELECT password_hash FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = result.rows[0];
+
+        // Verify current password
+        const isValid = await bcrypt.compare(currentPassword, user.password_hash);
+        if (!isValid) {
+            return res.status(401).json({ error: 'Current password is incorrect' });
+        }
+
+        // Hash new password and update
+        const newHash = await bcrypt.hash(newPassword, 10);
+        await query(
+            'UPDATE users SET password_hash = $1 WHERE id = $2',
+            [newHash, userId]
+        );
+
+        res.json({ message: 'Password changed successfully' });
+
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ error: 'Failed to change password' });
+    }
+};
+
 module.exports = {
     registerTenant,
     login,
     refreshToken,
+    changePassword,
 };

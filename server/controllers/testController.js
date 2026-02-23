@@ -7,19 +7,23 @@ const { logAuditEvent } = require('../services/auditService');
 const getTests = async (req, res) => {
     try {
         const tenantId = req.tenantId;
-        const { category, search } = req.query;
+        const { category, department, search } = req.query;
 
         let queryText = 'SELECT * FROM tests WHERE tenant_id = $1';
         let params = [tenantId];
 
         if (category) {
-            queryText += ' AND category = $2';
+            queryText += ` AND category = $${params.length + 1}`;
             params.push(category);
         }
 
+        if (department) {
+            queryText += ` AND department = $${params.length + 1}`;
+            params.push(department);
+        }
+
         if (search) {
-            const searchParam = params.length === 1 ? '$2' : '$3';
-            queryText += ` AND (name ILIKE ${searchParam} OR code ILIKE ${searchParam})`;
+            queryText += ` AND (name ILIKE $${params.length + 1} OR code ILIKE $${params.length + 1})`;
             params.push(`%${search}%`);
         }
 
@@ -61,6 +65,7 @@ const addTest = async (req, res) => {
             name,
             code,
             category,
+            department,
             price,
             cost,
             tatHours,
@@ -82,12 +87,12 @@ const addTest = async (req, res) => {
 
         const result = await query(
             `INSERT INTO tests (
-        tenant_id, name, code, category, price, cost, tat_hours,
+        tenant_id, name, code, category, department, price, cost, tat_hours,
         normal_range_male, normal_range_female, unit, sample_type, gst_percentage, is_profile
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
             [
-                tenantId, name, code, category, price, cost, tatHours,
+                tenantId, name, code, category, department || 'GENERAL', price, cost, tatHours,
                 normalRangeMale, normalRangeFemale, unit, sampleType, gstPercentage || 0, isProfile ? true : false
             ]
         );
@@ -134,6 +139,7 @@ const updateTest = async (req, res) => {
             name,
             code,
             category,
+            department,
             price,
             cost,
             tatHours,
@@ -153,19 +159,20 @@ const updateTest = async (req, res) => {
         name = COALESCE($1, name),
         code = COALESCE($2, code),
         category = COALESCE($3, category),
-        price = COALESCE($4, price),
-        cost = COALESCE($5, cost),
-        tat_hours = COALESCE($6, tat_hours),
-        normal_range_male = COALESCE($7, normal_range_male),
-        normal_range_female = COALESCE($8, normal_range_female),
-        unit = COALESCE($9, unit),
-        sample_type = COALESCE($10, sample_type),
-        gst_percentage = COALESCE($11, gst_percentage),
-        is_profile = COALESCE($12, is_profile)
-      WHERE id = $13 AND tenant_id = $14
+        department = COALESCE($4, department),
+        price = COALESCE($5, price),
+        cost = COALESCE($6, cost),
+        tat_hours = COALESCE($7, tat_hours),
+        normal_range_male = COALESCE($8, normal_range_male),
+        normal_range_female = COALESCE($9, normal_range_female),
+        unit = COALESCE($10, unit),
+        sample_type = COALESCE($11, sample_type),
+        gst_percentage = COALESCE($12, gst_percentage),
+        is_profile = COALESCE($13, is_profile)
+      WHERE id = $14 AND tenant_id = $15
       RETURNING *`,
             [
-                name, code, category, price, cost, tatHours,
+                name, code, category, department || null, price, cost, tatHours,
                 normalRangeMale, normalRangeFemale, unit, sampleType, gstPercentage,
                 isProfile !== undefined ? isProfile : null,
                 id, tenantId

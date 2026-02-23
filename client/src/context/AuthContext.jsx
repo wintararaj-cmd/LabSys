@@ -8,9 +8,9 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check if user is logged in
-        const token = localStorage.getItem('token');
-        const savedUser = localStorage.getItem('user');
+        // Check if user is logged in (sessionStorage clears on browser close)
+        const token = sessionStorage.getItem('token');
+        const savedUser = sessionStorage.getItem('user');
 
         if (token && savedUser) {
             setUser(JSON.parse(savedUser));
@@ -23,8 +23,8 @@ export const AuthProvider = ({ children }) => {
             const response = await authAPI.login(email, password);
             const { token, user } = response.data;
 
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
+            sessionStorage.setItem('token', token);
+            sessionStorage.setItem('user', JSON.stringify(user));
             setUser(user);
 
             return { success: true };
@@ -37,8 +37,8 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         setUser(null);
     };
 

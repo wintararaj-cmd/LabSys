@@ -46,7 +46,7 @@ const Inventory = () => {
     const units = ['ML', 'L', 'MG', 'G', 'KG', 'PCS', 'BOX', 'VIAL'];
 
     useEffect(() => {
-        const userStr = localStorage.getItem('user');
+        const userStr = sessionStorage.getItem('user');
         if (userStr) {
             const user = JSON.parse(userStr);
             setUserRole(user.role);
