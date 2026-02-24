@@ -189,16 +189,18 @@ const getInvoices = async (req, res) => {
         const tenantId = req.tenantId;
         const {
             page = 1,
-            limit = 20,
+            limit = 50,
             status,
             fromDate,
             toDate,
-            patientId
+            date,       // single date shorthand — overrides fromDate/toDate
+            patientId,
+            mobile      // filter by patient phone number
         } = req.query;
         const offset = (page - 1) * limit;
 
         let queryText = `
-      SELECT i.*, p.name as patient_name, p.uhid, d.name as doctor_name
+      SELECT i.*, p.name as patient_name, p.uhid, p.phone as patient_phone, d.name as doctor_name
       FROM invoices i
       LEFT JOIN patients p ON i.patient_id = p.id
       LEFT JOIN doctors d ON i.doctor_id = d.id
@@ -214,16 +216,23 @@ const getInvoices = async (req, res) => {
             params.push(status);
         }
 
-        if (fromDate) {
+        // Single date takes priority
+        if (date) {
             paramCount++;
-            queryText += ` AND i.created_at >= $${paramCount}`;
-            params.push(fromDate);
-        }
+            queryText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') = $${paramCount}`;
+            params.push(date);
+        } else {
+            if (fromDate) {
+                paramCount++;
+                queryText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') >= $${paramCount}`;
+                params.push(fromDate);
+            }
 
-        if (toDate) {
-            paramCount++;
-            queryText += ` AND i.created_at <= $${paramCount}`;
-            params.push(toDate);
+            if (toDate) {
+                paramCount++;
+                queryText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') <= $${paramCount}`;
+                params.push(toDate);
+            }
         }
 
         if (patientId) {
@@ -232,16 +241,35 @@ const getInvoices = async (req, res) => {
             params.push(patientId);
         }
 
+        if (mobile) {
+            paramCount++;
+            queryText += ` AND p.phone ILIKE $${paramCount}`;
+            params.push(`%${mobile}%`);
+        }
+
         queryText += ` ORDER BY i.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
         params.push(limit, offset);
 
         const result = await query(queryText, params);
 
-        // Get total count
-        const countResult = await query(
-            'SELECT COUNT(*) FROM invoices WHERE tenant_id = $1',
-            [tenantId]
-        );
+        // Get total count for the current filter
+        let countText = `
+      SELECT COUNT(*) FROM invoices i
+      LEFT JOIN patients p ON i.patient_id = p.id
+      WHERE i.tenant_id = $1
+    `;
+        let countParams = [tenantId];
+        let cp = 1;
+        if (status) { cp++; countText += ` AND i.payment_status = $${cp}`; countParams.push(status); }
+        if (date) { cp++; countText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') = $${cp}`; countParams.push(date); }
+        else {
+            if (fromDate) { cp++; countText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') >= $${cp}`; countParams.push(fromDate); }
+            if (toDate) { cp++; countText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') <= $${cp}`; countParams.push(toDate); }
+        }
+        if (patientId) { cp++; countText += ` AND i.patient_id = $${cp}`; countParams.push(patientId); }
+        if (mobile) { cp++; countText += ` AND p.phone ILIKE $${cp}`; countParams.push(`%${mobile}%`); }
+
+        const countResult = await query(countText, countParams);
 
         res.json({
             invoices: result.rows,
@@ -253,6 +281,34 @@ const getInvoices = async (req, res) => {
     } catch (error) {
         console.error('Get invoices error:', error);
         res.status(500).json({ error: 'Failed to fetch invoices' });
+    }
+};
+
+/**
+ * Get previous day dues (PARTIAL or PENDING invoices from before today)
+ */
+const getPreviousDayDues = async (req, res) => {
+    try {
+        const tenantId = req.tenantId;
+
+        const result = await query(
+            `SELECT i.*, p.name as patient_name, p.uhid, p.phone as patient_phone, d.name as doctor_name
+       FROM invoices i
+       LEFT JOIN patients p ON i.patient_id = p.id
+       LEFT JOIN doctors d ON i.doctor_id = d.id
+       WHERE i.tenant_id = $1
+         AND i.payment_status IN ('PARTIAL', 'PENDING')
+         AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') < CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
+       ORDER BY i.created_at ASC
+       LIMIT 100`,
+            [tenantId]
+        );
+
+        res.json({ dues: result.rows });
+
+    } catch (error) {
+        console.error('Get previous day dues error:', error);
+        res.status(500).json({ error: 'Failed to fetch previous day dues' });
     }
 };
 
@@ -503,5 +559,6 @@ module.exports = {
     getInvoiceById,
     updatePayment,
     processRefund,
-    downloadInvoicePDF
+    downloadInvoicePDF,
+    getPreviousDayDues
 };

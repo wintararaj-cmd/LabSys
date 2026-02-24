@@ -62,6 +62,7 @@ export const testAPI = {
 // Invoice API
 export const invoiceAPI = {
     getAll: (params) => api.get('/invoices', { params }),
+    getPreviousDayDues: () => api.get('/invoices/dues/previous-day'),
     getById: (id) => api.get(`/invoices/${id}`),
     create: (data) => api.post('/invoices', data),
     updatePayment: (id, data) => api.put(`/invoices/${id}/payment`, data),

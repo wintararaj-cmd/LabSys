@@ -14,6 +14,7 @@ router.post('/commission-preview', checkRole(['ADMIN', 'RECEPTIONIST', 'ACCOUNTA
 // Invoice routes
 router.post('/', checkRole(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT']), invoiceController.createInvoice);
 router.get('/', invoiceController.getInvoices);
+router.get('/dues/previous-day', invoiceController.getPreviousDayDues);
 router.get('/:id', invoiceController.getInvoiceById);
 router.put('/:id/payment', checkRole(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT']), invoiceController.updatePayment);
 router.post('/:id/refund', checkRole(['ADMIN', 'ACCOUNTANT']), invoiceController.processRefund);

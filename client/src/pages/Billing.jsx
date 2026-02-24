@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { invoiceAPI, patientAPI, testAPI, doctorAPI, introducerAPI } from '../services/api';
 import './Billing.css';
+
+// Helper: returns today's date as YYYY-MM-DD in local time
+const todayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 function Billing() {
     const [invoices, setInvoices] = useState([]);
@@ -11,7 +17,19 @@ function Billing() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
 
-    // Form state
+    // Previous day dues
+    const [previousDues, setPreviousDues] = useState([]);
+    const [duesLoading, setDuesLoading] = useState(true);
+    const [showDues, setShowDues] = useState(true);
+
+    // Filter state
+    const [filters, setFilters] = useState({
+        fromDate: todayStr(),
+        toDate: todayStr(),
+        mobile: ''
+    });
+    const [filterApplied, setFilterApplied] = useState(false); // true when user runs a custom search
+    const [invoiceTotal, setInvoiceTotal] = useState(0);
     const [formData, setFormData] = useState({
         patient_id: '',
         doctor_id: '',
@@ -52,6 +70,7 @@ function Billing() {
 
     useEffect(() => {
         loadData();
+        loadPreviousDues();
     }, []);
 
     useEffect(() => {
@@ -79,17 +98,24 @@ function Billing() {
         return () => clearTimeout(timer);
     }, [formData.doctor_id, formData.introducer_id, formData.introducer_raw, formData.department, calculations.net_amount]);
 
-    const loadData = async () => {
+    const loadData = async (customFilters) => {
         try {
             setLoading(true);
+            const f = customFilters || filters;
+            const params = { limit: 100 };
+            if (f.fromDate) params.fromDate = f.fromDate;
+            if (f.toDate) params.toDate = f.toDate;
+            if (f.mobile && f.mobile.trim()) params.mobile = f.mobile.trim();
+
             const [invoicesRes, testsRes, doctorsRes, introducersRes] = await Promise.all([
-                invoiceAPI.getAll({ limit: 10 }),
+                invoiceAPI.getAll(params),
                 testAPI.getAll(),
                 doctorAPI.getAll(),
                 introducerAPI.getAll()
             ]);
 
             setInvoices(invoicesRes.data.invoices || []);
+            setInvoiceTotal(invoicesRes.data.total || 0);
             setTests(testsRes.data.tests || []);
             setDoctors(doctorsRes.data.doctors || []);
             setIntroducers(introducersRes.data.introducers || []);
@@ -99,6 +125,31 @@ function Billing() {
             setLoading(false);
         }
     };
+
+    const loadPreviousDues = async () => {
+        try {
+            setDuesLoading(true);
+            const res = await invoiceAPI.getPreviousDayDues();
+            setPreviousDues(res.data.dues || []);
+        } catch (err) {
+            console.error('Failed to load previous dues:', err);
+        } finally {
+            setDuesLoading(false);
+        }
+    };
+
+    const handleApplyFilters = () => {
+        setFilterApplied(true);
+        loadData(filters);
+    };
+
+    const handleResetFilters = () => {
+        const reset = { fromDate: todayStr(), toDate: todayStr(), mobile: '' };
+        setFilters(reset);
+        setFilterApplied(false);
+        loadData(reset);
+    };
+
 
     const fetchCommissionPreview = async () => {
         if (!formData.doctor_id || calculations.net_amount <= 0) {
@@ -251,6 +302,7 @@ function Billing() {
             setShowForm(false);
             resetForm();
             loadData();
+            loadPreviousDues();
         } catch (err) {
             alert('Failed to create invoice: ' + (err.response?.data?.error || err.message));
         }
@@ -340,6 +392,7 @@ function Billing() {
             alert('Payment updated successfully');
             setShowPaymentModal(false);
             loadData();
+            loadPreviousDues();
         } catch (err) {
             console.error('Failed to update payment:', err);
             alert('Failed to update payment');
@@ -367,6 +420,7 @@ function Billing() {
             alert('Refund processed successfully');
             setShowRefundModal(false);
             loadData();
+            loadPreviousDues();
         } catch (err) {
             console.error('Failed to process refund:', err);
             alert('Failed to process refund: ' + (err.response?.data?.error || err.message));
@@ -409,7 +463,7 @@ function Billing() {
     return (
         <div className="billing-container">
             <div className="page-header">
-                <h1 className="page-title">Billing & Invoicing</h1>
+                <h1 className="page-title">Billing &amp; Invoicing</h1>
                 <button
                     className="btn btn-primary"
                     onClick={() => setShowForm(!showForm)}
@@ -417,6 +471,77 @@ function Billing() {
                     {showForm ? '✕ Cancel' : '➕ New Invoice'}
                 </button>
             </div>
+
+            {/* ── Previous Day Dues Banner ─────────────────────── */}
+            {!duesLoading && previousDues.length > 0 && (
+                <div className={`dues-banner ${showDues ? 'expanded' : 'collapsed'}`}>
+                    <div className="dues-banner-header" onClick={() => setShowDues(!showDues)}>
+                        <div className="dues-banner-title">
+                            <span className="dues-icon">⚠️</span>
+                            <span>
+                                <strong>Outstanding Dues from Previous Days</strong>
+                                <span className="dues-count-badge">{previousDues.length} patient{previousDues.length !== 1 ? 's' : ''}</span>
+                                <span className="dues-total-badge">
+                                    ₹{previousDues.reduce((s, d) => s + parseFloat(d.balance_amount || 0), 0).toFixed(2)} pending
+                                </span>
+                            </span>
+                        </div>
+                        <button className="dues-toggle-btn">{showDues ? '▲ Hide' : '▼ Show'}</button>
+                    </div>
+                    {showDues && (
+                        <div className="dues-table-wrapper">
+                            <table className="dues-table">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Patient (UHID)</th>
+                                        <th>Phone</th>
+                                        <th>Date</th>
+                                        <th>Net Amount</th>
+                                        <th>Paid</th>
+                                        <th>Balance Due</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {previousDues.map(due => (
+                                        <tr key={due.id} className="dues-row">
+                                            <td><span className="badge badge-info">{due.invoice_number}</span></td>
+                                            <td>
+                                                <div className="font-semibold">{due.patient_name}</div>
+                                                <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{due.uhid}</div>
+                                            </td>
+                                            <td style={{ fontFamily: 'monospace' }}>{due.patient_phone || '—'}</td>
+                                            <td>{new Date(due.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                            <td>₹{parseFloat(due.net_amount).toFixed(2)}</td>
+                                            <td>₹{parseFloat(due.paid_amount).toFixed(2)}</td>
+                                            <td className="dues-balance">₹{parseFloat(due.balance_amount).toFixed(2)}</td>
+                                            <td>
+                                                <span className={`badge ${due.payment_status === 'PARTIAL' ? 'badge-warning' : 'badge-error'}`}>
+                                                    {due.payment_status}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button
+                                                    className="btn-icon"
+                                                    title="View Invoice"
+                                                    onClick={() => handleViewInvoice(due.id)}
+                                                >👁️</button>
+                                                <button
+                                                    className="btn-icon text-success"
+                                                    title="Collect Payment"
+                                                    onClick={() => handleOpenPaymentModal(due)}
+                                                >💰</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Invoice Creation Form */}
             {showForm && (
@@ -765,9 +890,61 @@ function Billing() {
                 </div>
             )}
 
-            {/* Recent Invoices */}
+            {/* Filter Bar + Invoice List */}
             <div className="card">
-                <h3 className="card-header">Recent Invoices</h3>
+                {/* ── Filter Controls ─────────────────────────── */}
+                <div className="billing-filter-bar">
+                    <div className="filter-bar-title">🔍 Search Invoices</div>
+                    <div className="filter-controls">
+                        <div className="filter-field">
+                            <label>From Date</label>
+                            <input
+                                type="date"
+                                className="form-input"
+                                value={filters.fromDate}
+                                onChange={e => setFilters({ ...filters, fromDate: e.target.value })}
+                            />
+                        </div>
+                        <div className="filter-field">
+                            <label>To Date</label>
+                            <input
+                                type="date"
+                                className="form-input"
+                                value={filters.toDate}
+                                onChange={e => setFilters({ ...filters, toDate: e.target.value })}
+                            />
+                        </div>
+                        <div className="filter-field">
+                            <label>Mobile Number</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Search by phone..."
+                                value={filters.mobile}
+                                onChange={e => setFilters({ ...filters, mobile: e.target.value })}
+                                onKeyDown={e => e.key === 'Enter' && handleApplyFilters()}
+                                maxLength={15}
+                            />
+                        </div>
+                        <div className="filter-actions">
+                            <button className="btn btn-primary" onClick={handleApplyFilters}>Apply</button>
+                            <button className="btn btn-secondary" onClick={handleResetFilters}>Today</button>
+                        </div>
+                    </div>
+                    <div className="filter-summary">
+                        {filterApplied ? (
+                            <span className="filter-tag active">📅 {filters.fromDate} → {filters.toDate}{filters.mobile ? ` | 📱 ${filters.mobile}` : ''}</span>
+                        ) : (
+                            <span className="filter-tag">📅 Showing today: {filters.fromDate}</span>
+                        )}
+                        <span className="filter-count">{invoiceTotal} invoice{invoiceTotal !== 1 ? 's' : ''} found</span>
+                    </div>
+                </div>
+
+                {/* ── Invoice Table ───────────────────────────── */}
+                <h3 className="card-header" style={{ borderTop: '1px solid var(--gray-200)', marginTop: 0, paddingTop: 16 }}>
+                    {filterApplied ? 'Search Results' : "Today's Invoices"}
+                </h3>
                 {loading ? (
                     <div className="loading">
                         <div className="spinner"></div>
