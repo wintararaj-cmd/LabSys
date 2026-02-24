@@ -380,6 +380,23 @@ function Billing() {
         maxRefundable: 0
     });
 
+    // Close Modals on Escape Key
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowViewModal(false);
+                setShowPaymentModal(false);
+                setShowRefundModal(false);
+                setShowPatientModal(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+
+        return () => {
+            window.removeEventListener('keydown', handleEsc);
+        };
+    }, []);
+
     const handleViewInvoice = async (invoiceId) => {
         try {
             setLoading(true);
