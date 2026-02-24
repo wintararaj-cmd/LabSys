@@ -46,6 +46,8 @@ function Billing() {
     const [doctorSearch, setDoctorSearch] = useState('');
     const [patientResults, setPatientResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [focusedPatientIndex, setFocusedPatientIndex] = useState(-1);
+    const [focusedDoctorIndex, setFocusedDoctorIndex] = useState(-1);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [showPatientModal, setShowPatientModal] = useState(false);
     const [newPatient, setNewPatient] = useState({
@@ -92,6 +94,15 @@ function Billing() {
     };
 
     const filteredTests = getTestsForDepartment(formData.department);
+
+    const filteredDoctorsList = [];
+    if (!doctorSearch || 'self'.includes(doctorSearch.toLowerCase())) {
+        filteredDoctorsList.push({ id: 'SELF', name: 'Self / No Referring Doctor', isSpecial: true });
+    }
+    const matchingDoctors = doctors
+        .filter(d => !d.is_introducer)
+        .filter(d => d.name.toLowerCase().includes(doctorSearch.toLowerCase()));
+    filteredDoctorsList.push(...matchingDoctors);
 
     // Live commission preview whenever relevant fields change
     useEffect(() => {
@@ -201,6 +212,7 @@ function Billing() {
 
     const handlePatientSearch = async (query) => {
         setPatientSearch(query);
+        setFocusedPatientIndex(-1);
         if (query.length < 3) {
             setPatientResults([]);
             return;
@@ -222,6 +234,7 @@ function Billing() {
         setFormData({ ...formData, patient_id: patient.id });
         setPatientSearch('');
         setPatientResults([]);
+        setFocusedPatientIndex(-1);
     };
 
     const handleNewPatientSubmit = async (e) => {
@@ -598,6 +611,20 @@ function Billing() {
                                                 placeholder="🔍 Search by Name or Mobile No..."
                                                 value={patientSearch}
                                                 onChange={(e) => handlePatientSearch(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'ArrowDown') {
+                                                        e.preventDefault();
+                                                        setFocusedPatientIndex(prev => (prev < patientResults.length - 1 ? prev + 1 : prev));
+                                                    } else if (e.key === 'ArrowUp') {
+                                                        e.preventDefault();
+                                                        setFocusedPatientIndex(prev => (prev > 0 ? prev - 1 : prev));
+                                                    } else if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (focusedPatientIndex >= 0 && focusedPatientIndex < patientResults.length) {
+                                                            handleSelectPatient(patientResults[focusedPatientIndex]);
+                                                        }
+                                                    }
+                                                }}
                                             />
                                             <button
                                                 type="button"
@@ -610,11 +637,12 @@ function Billing() {
 
                                         {patientResults.length > 0 && (
                                             <div className="patient-results-dropdown">
-                                                {patientResults.map(p => (
+                                                {patientResults.map((p, idx) => (
                                                     <div
                                                         key={p.id}
-                                                        className="patient-result-item"
+                                                        className={`patient-result-item ${focusedPatientIndex === idx ? 'focused' : ''}`}
                                                         onClick={() => handleSelectPatient(p)}
+                                                        onMouseEnter={() => setFocusedPatientIndex(idx)}
                                                     >
                                                         <div className="p-name">{p.name} ({p.gender}/{p.age})</div>
                                                         <div className="p-meta">Phone: {p.phone} | UHID: {p.uhid}</div>
@@ -649,7 +677,10 @@ function Billing() {
                                         <button
                                             type="button"
                                             className="btn-text btn-danger"
-                                            onClick={() => setFormData({ ...formData, doctor_id: '' })}
+                                            onClick={() => {
+                                                setFormData({ ...formData, doctor_id: '' });
+                                                setFocusedDoctorIndex(-1);
+                                            }}
                                         >
                                             Change Doctor
                                         </button>
@@ -662,41 +693,42 @@ function Billing() {
                                                 className={`form-input ${!formData.doctor_id ? 'input-required' : ''}`}
                                                 placeholder="🔍 Search Doctor by Name..."
                                                 value={doctorSearch}
-                                                onChange={(e) => setDoctorSearch(e.target.value)}
+                                                onChange={(e) => {
+                                                    setDoctorSearch(e.target.value);
+                                                    setFocusedDoctorIndex(-1);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'ArrowDown') {
+                                                        e.preventDefault();
+                                                        setFocusedDoctorIndex(prev => (prev < filteredDoctorsList.length - 1 ? prev + 1 : prev));
+                                                    } else if (e.key === 'ArrowUp') {
+                                                        e.preventDefault();
+                                                        setFocusedDoctorIndex(prev => (prev > 0 ? prev - 1 : prev));
+                                                    } else if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        if (focusedDoctorIndex >= 0 && focusedDoctorIndex < filteredDoctorsList.length) {
+                                                            setFormData({ ...formData, doctor_id: filteredDoctorsList[focusedDoctorIndex].id });
+                                                        }
+                                                    }
+                                                }}
                                             />
                                         </div>
 
                                         <div className="patient-results-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                            {!doctorSearch && (
+                                            {filteredDoctorsList.map((doc, idx) => (
                                                 <div
-                                                    className="patient-result-item"
-                                                    onClick={() => setFormData({ ...formData, doctor_id: 'SELF' })}
+                                                    key={doc.id}
+                                                    className={`patient-result-item ${focusedDoctorIndex === idx ? 'focused' : ''}`}
+                                                    onClick={() => setFormData({ ...formData, doctor_id: doc.id })}
+                                                    onMouseEnter={() => setFocusedDoctorIndex(idx)}
                                                 >
-                                                    <div className="p-name">Self / No Referring Doctor</div>
+                                                    <div className="p-name">{doc.name}</div>
+                                                    {!doc.isSpecial && (
+                                                        <div className="p-meta">{doc.specialization || 'General'} {doc.commission_percentage ? `(${doc.commission_percentage}%)` : ''}</div>
+                                                    )}
                                                 </div>
-                                            )}
-                                            {doctorSearch && 'self'.includes(doctorSearch.toLowerCase()) && (
-                                                <div
-                                                    className="patient-result-item"
-                                                    onClick={() => setFormData({ ...formData, doctor_id: 'SELF' })}
-                                                >
-                                                    <div className="p-name">Self / No Referring Doctor</div>
-                                                </div>
-                                            )}
-                                            {doctors
-                                                .filter(d => !d.is_introducer)
-                                                .filter(d => d.name.toLowerCase().includes(doctorSearch.toLowerCase()))
-                                                .map(doctor => (
-                                                    <div
-                                                        key={doctor.id}
-                                                        className="patient-result-item"
-                                                        onClick={() => setFormData({ ...formData, doctor_id: doctor.id })}
-                                                    >
-                                                        <div className="p-name">{doctor.name}</div>
-                                                        <div className="p-meta">{doctor.specialization || 'General'} {doctor.commission_percentage ? `(${doctor.commission_percentage}%)` : ''}</div>
-                                                    </div>
-                                                ))}
-                                            {doctorSearch && doctors.filter(d => !d.is_introducer).filter(d => d.name.toLowerCase().includes(doctorSearch.toLowerCase())).length === 0 && !('self'.includes(doctorSearch.toLowerCase())) && (
+                                            ))}
+                                            {doctorSearch && filteredDoctorsList.length === 0 && (
                                                 <div style={{ padding: '12px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
                                                     No doctors found matching "{doctorSearch}"
                                                 </div>

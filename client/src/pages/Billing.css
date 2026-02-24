@@ -298,7 +298,8 @@
     border-bottom: none;
 }
 
-.patient-result-item:hover {
+.patient-result-item:hover,
+.patient-result-item.focused {
     background: #f8fafc;
 }
 
@@ -437,8 +438,15 @@
 }
 
 @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .dues-banner-header {
