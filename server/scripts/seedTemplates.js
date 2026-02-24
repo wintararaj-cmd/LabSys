@@ -68,13 +68,31 @@ async function seedTemplates() {
         // Use NULL for tenant_id to make them global templates
         const tenantId = null;
 
+        console.log('Cleaning up duplicate templates...');
+        const deleteDupRes = await pool.query(`
+            DELETE FROM report_templates
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id, ROW_NUMBER() OVER (PARTITION BY name ORDER BY id ASC) as rn
+                    FROM report_templates
+                ) t WHERE t.rn > 1
+            ) RETURNING id;
+        `);
+        console.log(`Cleaned up ${deleteDupRes.rowCount} duplicate template entries.`);
+
         for (const t of templates) {
-            await pool.query(
-                `INSERT INTO report_templates (tenant_id, name, category, file_path, default_findings, default_impression)
-                 VALUES ($1, $2, $3, $4, $5, $6)
-                 ON CONFLICT DO NOTHING`,
-                [tenantId, t.name, t.category, t.file_path, t.default_findings, t.default_impression]
+            const check = await pool.query(
+                'SELECT id FROM report_templates WHERE name = $1',
+                [t.name]
             );
+
+            if (check.rows.length === 0) {
+                await pool.query(
+                    `INSERT INTO report_templates (tenant_id, name, category, file_path, default_findings, default_impression)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [tenantId, t.name, t.category, t.file_path, t.default_findings, t.default_impression]
+                );
+            }
         }
 
         console.log('Templates seeded successfully.');

@@ -22,13 +22,78 @@ async function seedRadiology() {
             { name: 'MRI Lumbar Spine', code: 'MRI001', category: 'Radiology', department: 'MRI', price: 6500 }
         ];
 
+        console.log('Cleaning up any duplicate tests in test master...');
+        // Repoint foreign key references in invoice_items
+        await pool.query(`
+            WITH duplicates AS (
+                SELECT id, code, tenant_id,
+                    MIN(id) OVER (PARTITION BY tenant_id, code) as first_id,
+                    ROW_NUMBER() OVER (PARTITION BY tenant_id, code ORDER BY id ASC) as rn
+                FROM tests
+                WHERE code IS NOT NULL AND code != ''
+            )
+            UPDATE invoice_items
+            SET test_id = d.first_id
+            FROM duplicates d
+            WHERE invoice_items.test_id = d.id AND d.rn > 1;
+        `);
+
+        // Repoint foreign key references in reports
+        await pool.query(`
+            WITH duplicates AS (
+                SELECT id, code, tenant_id,
+                    MIN(id) OVER (PARTITION BY tenant_id, code) as first_id,
+                    ROW_NUMBER() OVER (PARTITION BY tenant_id, code ORDER BY id ASC) as rn
+                FROM tests
+                WHERE code IS NOT NULL AND code != ''
+            )
+            UPDATE reports
+            SET test_id = d.first_id
+            FROM duplicates d
+            WHERE reports.test_id = d.id AND d.rn > 1;
+        `);
+
+        // Repoint foreign key references in test_profile_items
+        await pool.query(`
+            WITH duplicates AS (
+                SELECT id, code, tenant_id,
+                    MIN(id) OVER (PARTITION BY tenant_id, code) as first_id,
+                    ROW_NUMBER() OVER (PARTITION BY tenant_id, code ORDER BY id ASC) as rn
+                FROM tests
+                WHERE code IS NOT NULL AND code != ''
+            )
+            UPDATE test_profile_items
+            SET test_id = d.first_id
+            FROM duplicates d
+            WHERE test_profile_items.test_id = d.id AND d.rn > 1;
+        `);
+
+        // Delete the duplicate tests
+        const deleteDupRes = await pool.query(`
+            DELETE FROM tests
+            WHERE id IN (
+                SELECT id FROM (
+                    SELECT id, ROW_NUMBER() OVER (PARTITION BY tenant_id, code ORDER BY id ASC) as rn
+                    FROM tests
+                    WHERE code IS NOT NULL AND code != ''
+                ) t WHERE t.rn > 1
+            ) RETURNING id;
+        `);
+        console.log(`Cleaned up ${deleteDupRes.rowCount} duplicate test entries.`);
+
         for (const test of tests) {
-            await pool.query(
-                `INSERT INTO tests (tenant_id, name, code, category, department, price) 
-                 VALUES ($1, $2, $3, $4, $5, $6)
-                 ON CONFLICT DO NOTHING`,
-                [tenantId, test.name, test.code, test.category, test.department, test.price]
+            const check = await pool.query(
+                'SELECT id FROM tests WHERE tenant_id = $1 AND code = $2',
+                [tenantId, test.code]
             );
+
+            if (check.rows.length === 0) {
+                await pool.query(
+                    `INSERT INTO tests (tenant_id, name, code, category, department, price) 
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [tenantId, test.name, test.code, test.category, test.department, test.price]
+                );
+            }
         }
 
         // 3. Add a sample Radiology Invoice and Report (only if not already seeded)
