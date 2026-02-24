@@ -218,18 +218,18 @@ const getInvoices = async (req, res) => {
 
         if (date) {
             paramCount++;
-            queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date = $${paramCount}::date`;
+            queryText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date = $${paramCount}::date`;
             params.push(date);
         } else {
             if (fromDate) {
                 paramCount++;
-                queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $${paramCount}::date`;
+                queryText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $${paramCount}::date`;
                 params.push(fromDate);
             }
 
             if (toDate) {
                 paramCount++;
-                queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $${paramCount}::date`;
+                queryText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $${paramCount}::date`;
                 params.push(toDate);
             }
         }
@@ -260,10 +260,10 @@ const getInvoices = async (req, res) => {
         let countParams = [tenantId];
         let cp = 1;
         if (status) { cp++; countText += ` AND i.payment_status = $${cp}`; countParams.push(status); }
-        if (date) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date = $${cp}::date`; countParams.push(date); }
+        if (date) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date = $${cp}::date`; countParams.push(date); }
         else {
-            if (fromDate) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $${cp}::date`; countParams.push(fromDate); }
-            if (toDate) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $${cp}::date`; countParams.push(toDate); }
+            if (fromDate) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $${cp}::date`; countParams.push(fromDate); }
+            if (toDate) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $${cp}::date`; countParams.push(toDate); }
         }
         if (patientId) { cp++; countText += ` AND i.patient_id = $${cp}`; countParams.push(patientId); }
         if (mobile) { cp++; countText += ` AND p.phone ILIKE $${cp}`; countParams.push(`%${mobile}%`); }
@@ -297,7 +297,7 @@ const getPreviousDayDues = async (req, res) => {
        LEFT JOIN doctors d ON i.doctor_id = d.id
        WHERE i.tenant_id = $1
          AND i.payment_status IN ('PARTIAL', 'PENDING')
-         AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') < CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
+         AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date
        ORDER BY i.created_at ASC
        LIMIT 100`,
             [tenantId]

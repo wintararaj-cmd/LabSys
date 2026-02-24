@@ -26,7 +26,7 @@ const getDashboardStats = async (req, res) => {
         const fyCollectionResult = await query(
             `SELECT COALESCE(SUM(paid_amount), 0) as fy_collection
        FROM invoices
-       WHERE tenant_id = $1 AND (created_at AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (created_at AT TIME ZONE 'Asia/Kolkata')::date <= $3::date${branchId ? ' AND branch_id = $4' : ''}`,
+       WHERE tenant_id = $1 AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $3::date${branchId ? ' AND branch_id = $4' : ''}`,
             branchId ? [tenantId, fy.startDate, fy.endDate, branchId] : [tenantId, fy.startDate, fy.endDate]
         );
 
@@ -182,7 +182,7 @@ const getMonthlyAnalytics = async (req, res) => {
             `SELECT COALESCE(SUM(paid_amount), 0) as total_revenue
        FROM invoices
        WHERE tenant_id = $1 
-       AND (created_at AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (created_at AT TIME ZONE 'Asia/Kolkata')::date <= $3::date${branchFilter}`,
+       AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $3::date${branchFilter}`,
             params
         );
 
@@ -191,7 +191,7 @@ const getMonthlyAnalytics = async (req, res) => {
             `SELECT COUNT(DISTINCT patient_id) as total_patients
        FROM invoices
        WHERE tenant_id = $1 
-       AND (created_at AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (created_at AT TIME ZONE 'Asia/Kolkata')::date <= $3::date${branchFilter}`,
+       AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $3::date${branchFilter}`,
             params
         );
 
@@ -201,7 +201,7 @@ const getMonthlyAnalytics = async (req, res) => {
        FROM invoice_items ii
        JOIN invoices i ON ii.invoice_id = i.id
        WHERE i.tenant_id = $1 
-       AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $3::date${branchId ? ' AND i.branch_id = $4' : ''}`,
+       AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $3::date${branchId ? ' AND i.branch_id = $4' : ''}`,
             params
         );
 
@@ -214,7 +214,7 @@ const getMonthlyAnalytics = async (req, res) => {
        FROM invoices i
        JOIN doctors d ON i.doctor_id = d.id
        WHERE i.tenant_id = $1 
-       AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $3::date
+       AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $2::date AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $3::date
        ${branchId ? ' AND i.branch_id = $4' : ''}
        GROUP BY d.id, d.name, d.commission_percentage
        ORDER BY total_business DESC`,

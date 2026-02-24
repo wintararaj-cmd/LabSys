@@ -125,7 +125,7 @@ const getDoctorCommission = async (req, res) => {
         SUM(i.net_amount * d.commission_percentage / 100) as total_commission
        FROM doctors d
        LEFT JOIN invoices i ON d.id = i.doctor_id 
-         AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $1::date AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $2::date
+         AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $1::date AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $2::date
        WHERE d.id = $3 AND d.tenant_id = $4
        GROUP BY d.id, d.name, d.specialization, d.commission_percentage`,
             [fromDate, toDate, id, tenantId]
