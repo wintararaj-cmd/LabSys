@@ -75,6 +75,14 @@ const createInvoice = async (req, res) => {
         });
 
         const netAmount = totalAmount + totalTax - discountAmount;
+
+        if (paidAmount < 0) {
+            return res.status(400).json({ error: 'Amount Paid cannot be less than 0' });
+        }
+        if (paidAmount > netAmount) {
+            return res.status(400).json({ error: `Amount Paid cannot exceed the Net Amount (₹${netAmount.toFixed(2)})` });
+        }
+
         const balanceAmount = netAmount - paidAmount;
         const paymentStatus = balanceAmount === 0 ? 'PAID' : (paidAmount > 0 ? 'PARTIAL' : 'PENDING');
 
@@ -380,7 +388,17 @@ const updatePayment = async (req, res) => {
             return res.status(400).json({ error: 'Cannot update payment for a fully refunded invoice.' });
         }
 
-        const newPaidAmount = parseFloat(invoice.paid_amount) + parseFloat(paidAmount);
+        const currentBalance = parseFloat(invoice.balance_amount);
+        const parsedPaid = parseFloat(paidAmount) || 0;
+
+        if (parsedPaid < 0) {
+            return res.status(400).json({ error: 'Paid amount cannot be less than 0' });
+        }
+        if (parsedPaid > currentBalance) {
+            return res.status(400).json({ error: `Paid amount cannot exceed the Balance Amount (₹${currentBalance.toFixed(2)})` });
+        }
+
+        const newPaidAmount = parseFloat(invoice.paid_amount) + parsedPaid;
         const netAfterRefund = parseFloat(invoice.net_amount) - parseFloat(invoice.refund_amount || 0);
         const newBalanceAmount = netAfterRefund - newPaidAmount;
 

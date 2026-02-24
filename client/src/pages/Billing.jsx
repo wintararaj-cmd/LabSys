@@ -280,6 +280,16 @@ function Billing() {
             return;
         }
 
+        const paid = parseFloat(formData.paid_amount) || 0;
+        if (paid < 0) {
+            alert('Amount Paid cannot be less than 0');
+            return;
+        }
+        if (paid > calculations.net_amount) {
+            alert(`Amount Paid cannot exceed the Net Amount (₹${calculations.net_amount.toFixed(2)})`);
+            return;
+        }
+
         try {
             const invoiceData = {
                 patientId: parseInt(formData.patient_id),
@@ -386,6 +396,18 @@ function Billing() {
 
     const handleUpdatePayment = async (e) => {
         e.preventDefault();
+
+        const paid = parseFloat(paymentData.paidAmount) || 0;
+        const bal = parseFloat(paymentData.balanceAmount) || 0;
+        if (paid < 0) {
+            alert('Paid amount cannot be less than 0');
+            return;
+        }
+        if (paid > bal) {
+            alert(`Paid amount cannot exceed the Balance Amount (₹${bal.toFixed(2)})`);
+            return;
+        }
+
         try {
             await invoiceAPI.updatePayment(paymentData.invoiceId, {
                 paidAmount: paymentData.paidAmount,
