@@ -60,7 +60,7 @@ const createInvoice = async (req, res) => {
         if (!patientId || !tests || tests.length === 0) {
             return res.status(400).json({ error: 'Patient and tests are required' });
         }
-        if (!doctorId) {
+        if (doctorId === undefined) {
             return res.status(400).json({ error: 'Referring Doctor is mandatory' });
         }
 
@@ -82,7 +82,7 @@ const createInvoice = async (req, res) => {
         const commission = await calculateCommission({
             tenantId,
             department: department || 'GENERAL',
-            doctorId: parseInt(doctorId),
+            doctorId: doctorId ? parseInt(doctorId) : null,
             introducerId: introducerId ? parseInt(introducerId) : null,
             introducerRaw: introducerRaw || '',
             netAmount
@@ -216,21 +216,20 @@ const getInvoices = async (req, res) => {
             params.push(status);
         }
 
-        // Single date takes priority
         if (date) {
             paramCount++;
-            queryText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') = $${paramCount}`;
+            queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date = $${paramCount}::date`;
             params.push(date);
         } else {
             if (fromDate) {
                 paramCount++;
-                queryText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') >= $${paramCount}`;
+                queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $${paramCount}::date`;
                 params.push(fromDate);
             }
 
             if (toDate) {
                 paramCount++;
-                queryText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') <= $${paramCount}`;
+                queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $${paramCount}::date`;
                 params.push(toDate);
             }
         }
@@ -261,10 +260,10 @@ const getInvoices = async (req, res) => {
         let countParams = [tenantId];
         let cp = 1;
         if (status) { cp++; countText += ` AND i.payment_status = $${cp}`; countParams.push(status); }
-        if (date) { cp++; countText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') = $${cp}`; countParams.push(date); }
+        if (date) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date = $${cp}::date`; countParams.push(date); }
         else {
-            if (fromDate) { cp++; countText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') >= $${cp}`; countParams.push(fromDate); }
-            if (toDate) { cp++; countText += ` AND DATE(i.created_at AT TIME ZONE 'Asia/Kolkata') <= $${cp}`; countParams.push(toDate); }
+            if (fromDate) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $${cp}::date`; countParams.push(fromDate); }
+            if (toDate) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $${cp}::date`; countParams.push(toDate); }
         }
         if (patientId) { cp++; countText += ` AND i.patient_id = $${cp}`; countParams.push(patientId); }
         if (mobile) { cp++; countText += ` AND p.phone ILIKE $${cp}`; countParams.push(`%${mobile}%`); }

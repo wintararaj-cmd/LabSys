@@ -80,7 +80,7 @@ const calculateCommission = async ({
             introducerCommission: 0,
             doctorId: null,
             introducerId: null,
-            summary: 'No referring doctor — no commission.'
+            summary: 'Self / No referring doctor — no commission.'
         };
     }
 
@@ -160,14 +160,14 @@ const previewCommission = async (req, res) => {
         const tenantId = req.tenantId;
         const { doctorId, introducerId, introducerRaw, department, netAmount } = req.body;
 
-        if (!doctorId || !netAmount) {
+        if (doctorId === undefined || !netAmount) {
             return res.json({ mode: 'NONE', doctorCommission: 0, introducerCommission: 0, summary: 'Select a doctor to preview commission.' });
         }
 
         const result = await calculateCommission({
             tenantId,
             department: department || 'GENERAL',
-            doctorId: parseInt(doctorId),
+            doctorId: doctorId ? parseInt(doctorId) : null,
             introducerId: introducerId ? parseInt(introducerId) : null,
             introducerRaw: introducerRaw || '',
             netAmount: parseFloat(netAmount)

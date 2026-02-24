@@ -125,7 +125,7 @@ const getDoctorCommission = async (req, res) => {
         SUM(i.net_amount * d.commission_percentage / 100) as total_commission
        FROM doctors d
        LEFT JOIN invoices i ON d.id = i.doctor_id 
-         AND i.created_at >= $1 AND i.created_at <= $2
+         AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $1::date AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $2::date
        WHERE d.id = $3 AND d.tenant_id = $4
        GROUP BY d.id, d.name, d.specialization, d.commission_percentage`,
             [fromDate, toDate, id, tenantId]
@@ -210,22 +210,22 @@ const getOutstandingCommission = async (req, res) => {
 
         const row = earnedResult.rows[0];
         const totalEarned = parseFloat(row.total_earned);
-        const totalPaid   = parseFloat(paidResult.rows[0].total_paid);
+        const totalPaid = parseFloat(paidResult.rows[0].total_paid);
 
         res.json({
-            doctor_id:         id,
-            total_earned:      totalEarned,
-            total_paid:        totalPaid,
+            doctor_id: id,
+            total_earned: totalEarned,
+            total_paid: totalPaid,
             outstanding_amount: totalEarned - totalPaid,
-            total_invoices:    parseInt(row.total_invoices),
-            total_business:    parseFloat(row.total_business),
+            total_invoices: parseInt(row.total_invoices),
+            total_business: parseFloat(row.total_business),
             total_given_to_intro: parseFloat(row.total_given_to_intro),
             mode_counts: {
-                DOCTOR:      parseInt(row.mode_doctor),
-                INTRODUCER:  parseInt(row.mode_introducer),
-                SPLIT:       parseInt(row.mode_split),
+                DOCTOR: parseInt(row.mode_doctor),
+                INTRODUCER: parseInt(row.mode_introducer),
+                SPLIT: parseInt(row.mode_split),
             },
-            monthly:   monthlyResult.rows,
+            monthly: monthlyResult.rows,
             breakdown: breakdownResult.rows,
         });
 

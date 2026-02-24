@@ -159,7 +159,7 @@ function Billing() {
         try {
             setCommissionLoading(true);
             const res = await invoiceAPI.previewCommission({
-                doctorId: formData.doctor_id,
+                doctorId: formData.doctor_id === 'SELF' ? null : formData.doctor_id,
                 introducerId: formData.introducer_id || null,
                 introducerRaw: formData.introducer_raw,
                 department: formData.department,
@@ -282,7 +282,7 @@ function Billing() {
         try {
             const invoiceData = {
                 patientId: parseInt(formData.patient_id),
-                doctorId: parseInt(formData.doctor_id),
+                doctorId: formData.doctor_id === 'SELF' ? null : parseInt(formData.doctor_id),
                 introducerId: formData.introducer_id ? parseInt(formData.introducer_id) : null,
                 introducerRaw: formData.introducer_raw,
                 department: formData.department,
@@ -617,6 +617,7 @@ function Billing() {
                                     required
                                 >
                                     <option value="">-- Select Referring Doctor --</option>
+                                    <option value="SELF">Self / No Referring Doctor</option>
                                     {doctors.filter(d => !d.is_introducer).map(doctor => (
                                         <option key={doctor.id} value={doctor.id}>
                                             {doctor.name}{doctor.specialization ? ` · ${doctor.specialization}` : ''}{doctor.commission_percentage ? ` (${doctor.commission_percentage}%)` : ''}

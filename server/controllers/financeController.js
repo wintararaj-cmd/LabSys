@@ -24,13 +24,13 @@ const getGSTReport = async (req, res) => {
 
         if (startDate) {
             paramCount++;
-            queryText += ` AND i.created_at >= $${paramCount}`;
+            queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $${paramCount}::date`;
             params.push(startDate);
         }
 
         if (endDate) {
             paramCount++;
-            queryText += ` AND i.created_at <= $${paramCount}`;
+            queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $${paramCount}::date`;
             params.push(endDate);
         }
 
@@ -69,13 +69,13 @@ const getCashBook = async (req, res) => {
 
         if (startDate) {
             paramCount++;
-            queryText += ` AND i.created_at >= $${paramCount}`;
+            queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $${paramCount}::date`;
             params.push(startDate);
         }
 
         if (endDate) {
             paramCount++;
-            queryText += ` AND i.created_at <= $${paramCount}`;
+            queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $${paramCount}::date`;
             params.push(endDate);
         }
 
@@ -117,13 +117,13 @@ const getSaleReport = async (req, res) => {
 
         if (startDate) {
             paramCount++;
-            queryText += ` AND i.created_at >= $${paramCount}`;
+            queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date >= $${paramCount}::date`;
             params.push(startDate);
         }
 
         if (endDate) {
             paramCount++;
-            queryText += ` AND i.created_at <= $${paramCount}`;
+            queryText += ` AND (i.created_at AT TIME ZONE 'Asia/Kolkata')::date <= $${paramCount}::date`;
             params.push(endDate);
         }
 
