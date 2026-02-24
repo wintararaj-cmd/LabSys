@@ -84,8 +84,10 @@ const getCashBook = async (req, res) => {
                 -- 1. Patient Invoices (INWARD)
                 SELECT 
                     i.created_at, 
-                    i.invoice_number as reference, 
+                    i.invoice_number as reference,
+                    i.invoice_number as invoice_number,
                     p.name as particulars,
+                    p.name as patient_name,
                     COALESCE(i.payment_mode, 'CASH') as payment_mode, 
                     i.paid_amount as amount,
                     'INWARD' as type,
@@ -93,50 +95,6 @@ const getCashBook = async (req, res) => {
                 FROM invoices i
                 JOIN patients p ON i.patient_id = p.id
                 WHERE i.tenant_id = $1 AND COALESCE(i.paid_amount, 0) > 0
-
-                UNION ALL
-
-                -- 2. Refunds (OUTWARD)
-                SELECT 
-                    i.created_at, 
-                    i.invoice_number as reference, 
-                    p.name as particulars,
-                    COALESCE(i.payment_mode, 'CASH') as payment_mode, 
-                    i.refund_amount as amount,
-                    'OUTWARD' as type,
-                    'Patient Refund' as source
-                FROM invoices i
-                JOIN patients p ON i.patient_id = p.id
-                WHERE i.tenant_id = $1 AND COALESCE(i.refund_amount, 0) > 0
-
-                UNION ALL
-
-                -- 3. Doctor Payouts (OUTWARD)
-                SELECT 
-                    dp.payment_date::timestamp as created_at, 
-                    COALESCE(dp.reference_number, 'PAYOUT-' || dp.id) as reference, 
-                    'Dr. ' || d.name as particulars,
-                    COALESCE(dp.payment_mode, 'CASH') as payment_mode, 
-                    dp.amount,
-                    'OUTWARD' as type,
-                    'Commission Payout' as source
-                FROM doctor_payouts dp
-                JOIN doctors d ON dp.doctor_id = d.id
-                WHERE dp.tenant_id = $1 AND COALESCE(dp.amount, 0) > 0
-
-                UNION ALL
-
-                -- 4. Purchases (OUTWARD)
-                SELECT 
-                    pi.purchase_date::timestamp as created_at, 
-                    pi.invoice_number as reference, 
-                    pi.supplier_name as particulars,
-                    COALESCE(pi.payment_mode, 'CASH') as payment_mode, 
-                    pi.net_amount as amount,
-                    'OUTWARD' as type,
-                    'Purchase' as source
-                FROM purchase_invoices pi
-                WHERE pi.tenant_id = $1 AND pi.payment_status IN ('PAID', 'PARTIAL') AND COALESCE(pi.net_amount, 0) > 0
             )
             SELECT * FROM combined_cash
             WHERE 1=1

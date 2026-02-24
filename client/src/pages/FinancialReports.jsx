@@ -90,73 +90,43 @@ const FinancialReports = () => {
         </div>
     );
 
-    const renderCashBook = () => {
-        const totalIn = data.filter(r => r.type === 'INWARD').reduce((sum, r) => sum + parseFloat(r.amount), 0);
-        const totalOut = data.filter(r => r.type === 'OUTWARD').reduce((sum, r) => sum + parseFloat(r.amount), 0);
-        const closingBalance = totalIn - totalOut;
-
-        return (
-            <div className="report-table-wrapper">
-                <table className="report-table">
-                    <thead>
-                        <tr>
-                            <th>Date / Time</th>
-                            <th>Reference / Invoice #</th>
-                            <th>Particulars</th>
-                            <th>Source</th>
-                            <th>Mode</th>
-                            <th className="text-right" style={{ color: '#059669' }}>Amount (In)</th>
-                            <th className="text-right" style={{ color: '#dc2626' }}>Amount (Out)</th>
+    const renderCashBook = () => (
+        <div className="report-table-wrapper">
+            <table className="report-table">
+                <thead>
+                    <tr>
+                        <th>Date / Time</th>
+                        <th>Invoice #</th>
+                        <th>Patient Name</th>
+                        <th>Mode</th>
+                        <th className="text-right">Amount (Inward)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {data.map((row, index) => (
+                        <tr key={index}>
+                            <td>{new Date(row.created_at).toLocaleString()}</td>
+                            <td className="highlight">{row.invoice_number || row.reference}</td>
+                            <td>{row.patient_name || row.particulars}</td>
+                            <td><span className={`mode-badge ${row.payment_mode}`}>{row.payment_mode}</span></td>
+                            <td className="text-right bold">{formatCurrency(row.amount)}</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {data.map((row, index) => (
-                            <tr key={index}>
-                                <td>{new Date(row.created_at).toLocaleString()}</td>
-                                <td className="highlight">{row.reference || '-'}</td>
-                                <td>{row.particulars}</td>
-                                <td>
-                                    <span style={{
-                                        fontSize: '0.75rem', padding: '2px 8px', borderRadius: '10px',
-                                        backgroundColor: row.type === 'INWARD' ? '#d1fae5' : '#fee2e2',
-                                        color: row.type === 'INWARD' ? '#065f46' : '#991b1b',
-                                        fontWeight: '600'
-                                    }}>
-                                        {row.source}
-                                    </span>
-                                </td>
-                                <td><span className={`mode-badge ${row.payment_mode}`}>{row.payment_mode}</span></td>
-                                <td className="text-right bold" style={{ color: '#059669' }}>
-                                    {row.type === 'INWARD' ? formatCurrency(row.amount) : '-'}
-                                </td>
-                                <td className="text-right bold" style={{ color: '#dc2626' }}>
-                                    {row.type === 'OUTWARD' ? formatCurrency(row.amount) : '-'}
-                                </td>
-                            </tr>
-                        ))}
-                        {data.length === 0 && (
-                            <tr><td colSpan="7" className="no-data">No data found for the selected period</td></tr>
-                        )}
-                    </tbody>
-                    {data.length > 0 && (
-                        <tfoot>
-                            <tr>
-                                <td colSpan="5">Totals</td>
-                                <td className="text-right bold" style={{ color: '#059669', fontSize: '1.1em' }}>{formatCurrency(totalIn)}</td>
-                                <td className="text-right bold" style={{ color: '#dc2626', fontSize: '1.1em' }}>{formatCurrency(totalOut)}</td>
-                            </tr>
-                            <tr style={{ backgroundColor: '#f8fafc' }}>
-                                <td colSpan="5" className="text-right bold" style={{ fontSize: '1.1em' }}>Closing Balance:</td>
-                                <td colSpan="2" className="text-right bold" style={{ fontSize: '1.2em', color: closingBalance >= 0 ? '#059669' : '#dc2626' }}>
-                                    {formatCurrency(closingBalance)}
-                                </td>
-                            </tr>
-                        </tfoot>
+                    ))}
+                    {data.length === 0 && (
+                        <tr><td colSpan="5" className="no-data">No data found for the selected period</td></tr>
                     )}
-                </table>
-            </div>
-        );
-    };
+                </tbody>
+                {data.length > 0 && (
+                    <tfoot>
+                        <tr>
+                            <td colSpan="4">Total Collections</td>
+                            <td className="text-right bold">{formatCurrency(data.reduce((sum, r) => sum + parseFloat(r.amount), 0))}</td>
+                        </tr>
+                    </tfoot>
+                )}
+            </table>
+        </div>
+    );
 
     const renderSaleReport = () => (
         <div className="report-table-wrapper">
