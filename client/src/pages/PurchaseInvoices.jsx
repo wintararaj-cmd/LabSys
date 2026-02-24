@@ -28,6 +28,17 @@ const PurchaseInvoices = () => {
         fetchInventory();
     }, []);
 
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowModal(false);
+                setViewPurchase(null);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     const fetchData = async () => {
         try {
             setLoading(true);

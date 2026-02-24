@@ -22,6 +22,17 @@ const Branches = () => {
         fetchData();
     }, []);
 
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowBranchForm(false);
+                setShowUserForm(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     const fetchData = async () => {
         try {
             setLoading(true);

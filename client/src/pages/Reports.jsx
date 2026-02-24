@@ -34,6 +34,17 @@ const Reports = () => {
         fetchReports();
     }, [statusFilter]);
 
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowResultForm(false);
+                setShowOutboundModal(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     const fetchReports = async () => {
         try {
             setLoading(true);

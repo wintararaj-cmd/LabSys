@@ -57,6 +57,17 @@ const Inventory = () => {
         fetchItems();
     }, [selectedBranch]);
 
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowAdjustModal(false);
+                setShowLogsModal(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     const fetchBranches = async () => {
         try {
             const response = await branchAPI.getAll();

@@ -20,6 +20,16 @@ const ExternalLabs = () => {
         fetchLabs();
     }, []);
 
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowModal(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     const fetchLabs = async () => {
         try {
             const response = await api.get('/external-labs');

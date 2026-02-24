@@ -21,6 +21,16 @@ const Radiology = () => {
         fetchTemplates();
     }, []);
 
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowEditModal(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     const fetchReports = async () => {
         try {
             setLoading(true);

@@ -39,6 +39,16 @@ const Introducers = () => {
 
     useEffect(() => { fetchIntroducers(); }, []);
 
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowCommissionModal(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     const fetchIntroducers = async () => {
         try {
             setLoading(true);

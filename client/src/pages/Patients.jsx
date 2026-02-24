@@ -28,6 +28,16 @@ function Patients() {
         loadPatients();
     }, [currentPage, searchTerm]);
 
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.key === 'Escape') {
+                setShowViewModal(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     const loadPatients = async () => {
         try {
             setLoading(true);
