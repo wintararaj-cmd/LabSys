@@ -43,6 +43,7 @@ function Billing() {
     });
 
     const [patientSearch, setPatientSearch] = useState('');
+    const [doctorSearch, setDoctorSearch] = useState('');
     const [patientResults, setPatientResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState(null);
@@ -322,6 +323,7 @@ function Billing() {
         });
         setSelectedPatient(null);
         setCommissionPreview(null);
+        setDoctorSearch('');
     };
 
     const getPaymentStatusBadge = (status) => {
@@ -608,22 +610,78 @@ function Billing() {
                                 )}
                             </div>
 
-                            <div className="form-group">
+                            <div className="form-group patient-search-wrapper">
                                 <label className="form-label">Referring Doctor <span style={{ color: '#ef4444' }}>*</span></label>
-                                <select
-                                    className={`form-select ${!formData.doctor_id ? 'input-required' : ''}`}
-                                    value={formData.doctor_id}
-                                    onChange={(e) => setFormData({ ...formData, doctor_id: e.target.value })}
-                                    required
-                                >
-                                    <option value="">-- Select Referring Doctor --</option>
-                                    <option value="SELF">Self / No Referring Doctor</option>
-                                    {doctors.filter(d => !d.is_introducer).map(doctor => (
-                                        <option key={doctor.id} value={doctor.id}>
-                                            {doctor.name}{doctor.specialization ? ` · ${doctor.specialization}` : ''}{doctor.commission_percentage ? ` (${doctor.commission_percentage}%)` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                {formData.doctor_id ? (
+                                    <div className="selected-patient-box">
+                                        <div className="patient-info-mini">
+                                            <strong>
+                                                {formData.doctor_id === 'SELF'
+                                                    ? 'Self / No Referring Doctor'
+                                                    : doctors.find(d => d.id == formData.doctor_id)?.name || 'Unknown Doctor'}
+                                            </strong>
+                                            {formData.doctor_id !== 'SELF' && doctors.find(d => d.id == formData.doctor_id) && (
+                                                <span>{doctors.find(d => d.id == formData.doctor_id)?.specialization || 'General'}</span>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn-text btn-danger"
+                                            onClick={() => setFormData({ ...formData, doctor_id: '' })}
+                                        >
+                                            Change Doctor
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="patient-search-input-container">
+                                        <div className="input-group">
+                                            <input
+                                                type="text"
+                                                className={`form-input ${!formData.doctor_id ? 'input-required' : ''}`}
+                                                placeholder="🔍 Search Doctor by Name..."
+                                                value={doctorSearch}
+                                                onChange={(e) => setDoctorSearch(e.target.value)}
+                                            />
+                                        </div>
+
+                                        <div className="patient-results-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                            {!doctorSearch && (
+                                                <div
+                                                    className="patient-result-item"
+                                                    onClick={() => setFormData({ ...formData, doctor_id: 'SELF' })}
+                                                >
+                                                    <div className="p-name">Self / No Referring Doctor</div>
+                                                </div>
+                                            )}
+                                            {doctorSearch && 'self'.includes(doctorSearch.toLowerCase()) && (
+                                                <div
+                                                    className="patient-result-item"
+                                                    onClick={() => setFormData({ ...formData, doctor_id: 'SELF' })}
+                                                >
+                                                    <div className="p-name">Self / No Referring Doctor</div>
+                                                </div>
+                                            )}
+                                            {doctors
+                                                .filter(d => !d.is_introducer)
+                                                .filter(d => d.name.toLowerCase().includes(doctorSearch.toLowerCase()))
+                                                .map(doctor => (
+                                                    <div
+                                                        key={doctor.id}
+                                                        className="patient-result-item"
+                                                        onClick={() => setFormData({ ...formData, doctor_id: doctor.id })}
+                                                    >
+                                                        <div className="p-name">{doctor.name}</div>
+                                                        <div className="p-meta">{doctor.specialization || 'General'} {doctor.commission_percentage ? `(${doctor.commission_percentage}%)` : ''}</div>
+                                                    </div>
+                                                ))}
+                                            {doctorSearch && doctors.filter(d => !d.is_introducer).filter(d => d.name.toLowerCase().includes(doctorSearch.toLowerCase())).length === 0 && !('self'.includes(doctorSearch.toLowerCase())) && (
+                                                <div style={{ padding: '12px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
+                                                    No doctors found matching "{doctorSearch}"
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="form-group">
