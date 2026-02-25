@@ -16,6 +16,7 @@ router.post('/', checkRole(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT']), invoiceCont
 router.get('/', invoiceController.getInvoices);
 router.get('/dues/previous-day', invoiceController.getPreviousDayDues);
 router.get('/:id', invoiceController.getInvoiceById);
+router.put('/:id', checkRole(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT']), invoiceController.updateInvoice);
 router.put('/:id/payment', checkRole(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT']), invoiceController.updatePayment);
 router.post('/:id/refund', checkRole(['ADMIN', 'ACCOUNTANT']), invoiceController.processRefund);
 router.get('/:id/pdf', invoiceController.downloadInvoicePDF);

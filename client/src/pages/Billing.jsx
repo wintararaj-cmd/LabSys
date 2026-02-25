@@ -16,6 +16,8 @@ function Billing() {
     const [introducers, setIntroducers] = useState([]); // introducers (is_introducer=true)
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const [editMode, setEditMode] = useState(false);
+    const [editingInvoiceId, setEditingInvoiceId] = useState(null);
 
     // Previous day dues
     const [previousDues, setPreviousDues] = useState([]);
@@ -285,6 +287,50 @@ function Billing() {
         });
     };
 
+    const handleEditInvoice = async (invoiceId) => {
+        try {
+            setLoading(true);
+            const response = await invoiceAPI.getById(invoiceId);
+            const invoice = response.data.invoice;
+            const items = response.data.items;
+
+            setEditMode(true);
+            setEditingInvoiceId(invoiceId);
+            setSelectedPatient({
+                id: invoice.patient_id,
+                name: invoice.patient_name,
+                uhid: invoice.uhid,
+                phone: invoice.phone || ''
+            });
+            setDoctorSearch(invoice.doctor_name || '');
+            setFormData({
+                patient_id: invoice.patient_id,
+                doctor_id: invoice.doctor_id || 'SELF',
+                introducer_id: invoice.introducer_id || '',
+                introducer_raw: invoice.introducer_id ? '' : (invoice.commission_mode === 'INTRODUCER' ? invoice.introducer_raw : invoice.commission_mode === 'NONE' ? '' : 'SELF'),
+                department: invoice.department || 'GENERAL',
+                discount_amount: invoice.discount_amount || 0,
+                payment_mode: invoice.payment_mode || 'CASH',
+                paid_amount: invoice.paid_amount || 0,
+                selectedTests: items.map(item => ({
+                    id: item.test_id,
+                    name: item.test_name,
+                    code: item.test_code,
+                    price: item.price,
+                    gst_percentage: item.gst_percentage,
+                    sampleId: item.sample_id || `SID${Date.now().toString().slice(-6)}`
+                }))
+            });
+            setShowForm(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (err) {
+            console.error('Failed to load invoice for editing:', err);
+            alert('Failed to load invoice for editing');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -329,8 +375,14 @@ function Billing() {
                 paidAmount: parseFloat(formData.paid_amount) || 0
             };
 
-            await invoiceAPI.create(invoiceData);
-            alert('Invoice created successfully!');
+            if (editMode && editingInvoiceId) {
+                await invoiceAPI.update(editingInvoiceId, invoiceData);
+                alert('Invoice updated successfully!');
+            } else {
+                await invoiceAPI.create(invoiceData);
+                alert('Invoice created successfully!');
+            }
+
             setShowForm(false);
             resetForm();
             loadData();
@@ -355,6 +407,13 @@ function Billing() {
         setSelectedPatient(null);
         setCommissionPreview(null);
         setDoctorSearch('');
+        setEditMode(false);
+        setEditingInvoiceId(null);
+    };
+
+    const handleCancelForm = () => {
+        setShowForm(false);
+        resetForm();
     };
 
     const getPaymentStatusBadge = (status) => {
@@ -605,10 +664,10 @@ function Billing() {
                 </div>
             )}
 
-            {/* Invoice Creation Form */}
+            {/* Invoice Creation / Edit Form */}
             {showForm && (
-                <div className="card mb-3">
-                    <h3 className="card-header">Create New Invoice</h3>
+                <div className="card mb-3" style={{ border: editMode ? '2px solid #8b5cf6' : 'none' }}>
+                    <h3 className="card-header">{editMode ? '✏️ Edit Invoice' : 'Create New Invoice'}</h3>
                     <form onSubmit={handleSubmit} className="billing-form">
                         <div className="form-row">
                             <div className="form-group patient-search-wrapper">
@@ -1026,12 +1085,12 @@ function Billing() {
 
                         <div className="form-actions">
                             <button type="submit" className="btn btn-primary">
-                                Create Invoice
+                                {editMode ? 'Update Invoice' : 'Create Invoice'}
                             </button>
                             <button
                                 type="button"
                                 className="btn btn-secondary"
-                                onClick={() => setShowForm(false)}
+                                onClick={handleCancelForm}
                             >
                                 Cancel
                             </button>
@@ -1146,6 +1205,13 @@ function Billing() {
                                                 onClick={() => handleViewInvoice(invoice.id)}
                                             >
                                                 👁️
+                                            </button>
+                                            <button
+                                                className="btn-icon"
+                                                title="Edit Invoice"
+                                                onClick={() => handleEditInvoice(invoice.id)}
+                                            >
+                                                ✏️
                                             </button>
                                             <button
                                                 className="btn-icon"

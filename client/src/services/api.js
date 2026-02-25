@@ -65,6 +65,7 @@ export const invoiceAPI = {
     getPreviousDayDues: () => api.get('/invoices/dues/previous-day'),
     getById: (id) => api.get(`/invoices/${id}`),
     create: (data) => api.post('/invoices', data),
+    update: (id, data) => api.put(`/invoices/${id}`, data),
     updatePayment: (id, data) => api.put(`/invoices/${id}/payment`, data),
     processRefund: (id, data) => api.post(`/invoices/${id}/refund`, data),
     downloadPDF: (id) => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
