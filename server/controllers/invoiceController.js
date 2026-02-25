@@ -274,15 +274,15 @@ const updateInvoice = async (req, res) => {
             // Update invoice
             const updateRes = await client.query(
                 `UPDATE invoices SET
-                    patient_id = $1, doctor_id = $2, introducer_id = $3, introducer_raw = $4,
-                    department = $5, total_amount = $6, discount_amount = $7,
-                    tax_amount = $8, net_amount = $9, paid_amount = $10,
-                    balance_amount = $11, payment_status = $12, payment_mode = $13,
-                    commission_mode = $14, doctor_commission = $15, introducer_commission = $16
-                 WHERE id = $17 AND tenant_id = $18
+                    patient_id = $1, doctor_id = $2, introducer_id = $3,
+                    department = $4, total_amount = $5, discount_amount = $6,
+                    tax_amount = $7, net_amount = $8, paid_amount = $9,
+                    balance_amount = $10, payment_status = $11, payment_mode = $12,
+                    commission_mode = $13, doctor_commission = $14, introducer_commission = $15
+                 WHERE id = $16 AND tenant_id = $17
                  RETURNING *`,
                 [
-                    patientId, doctorId, commission.introducerId, introducerRaw,
+                    patientId, doctorId, commission.introducerId,
                     department || existingInvoice.department, totalAmount, discountAmount,
                     totalTax, netAmount, finalPaidAmount,
                     balanceAmount, paymentStatus, paymentMode || existingInvoice.payment_mode,
