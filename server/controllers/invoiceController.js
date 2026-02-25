@@ -342,7 +342,7 @@ const updateInvoice = async (req, res) => {
                 action: 'UPDATE',
                 entityType: 'INVOICE',
                 entityId: id,
-                details: \`Updated invoice \${existingInvoice.invoice_number} for patient ID \${patientId}\`
+                details: `Updated invoice ${existingInvoice.invoice_number} for patient ID ${patientId}`
             });
 
             await client.query('COMMIT');
@@ -396,41 +396,41 @@ const getInvoices = async (req, res) => {
         // Add filters
         if (status) {
             paramCount++;
-            queryText += ` AND i.payment_status = $${ paramCount }`;
+            queryText += ` AND i.payment_status = $${paramCount}`;
             params.push(status);
         }
 
         if (date) {
             paramCount++;
-            queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date = $${ paramCount }:: date`;
+            queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date = $${paramCount}:: date`;
             params.push(date);
         } else {
             if (fromDate) {
                 paramCount++;
-                queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date >= $${ paramCount }:: date`;
+                queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date >= $${paramCount}:: date`;
                 params.push(fromDate);
             }
 
             if (toDate) {
                 paramCount++;
-                queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date <= $${ paramCount }:: date`;
+                queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date <= $${paramCount}:: date`;
                 params.push(toDate);
             }
         }
 
         if (patientId) {
             paramCount++;
-            queryText += ` AND i.patient_id = $${ paramCount }`;
+            queryText += ` AND i.patient_id = $${paramCount}`;
             params.push(patientId);
         }
 
         if (mobile) {
             paramCount++;
-            queryText += ` AND p.phone ILIKE $${ paramCount }`;
-            params.push(`% ${ mobile } % `);
+            queryText += ` AND p.phone ILIKE $${paramCount}`;
+            params.push(`% ${mobile} % `);
         }
 
-        queryText += ` ORDER BY i.created_at DESC LIMIT $${ paramCount + 1} OFFSET $${ paramCount + 2 } `;
+        queryText += ` ORDER BY i.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2} `;
         params.push(limit, offset);
 
         const result = await query(queryText, params);
@@ -443,14 +443,14 @@ const getInvoices = async (req, res) => {
             `;
         let countParams = [tenantId];
         let cp = 1;
-        if (status) { cp++; countText += ` AND i.payment_status = $${ cp } `; countParams.push(status); }
-        if (date) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date = $${ cp }:: date`; countParams.push(date); }
+        if (status) { cp++; countText += ` AND i.payment_status = $${cp} `; countParams.push(status); }
+        if (date) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date = $${cp}:: date`; countParams.push(date); }
         else {
-            if (fromDate) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date >= $${ cp }:: date`; countParams.push(fromDate); }
-            if (toDate) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date <= $${ cp }:: date`; countParams.push(toDate); }
+            if (fromDate) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date >= $${cp}:: date`; countParams.push(fromDate); }
+            if (toDate) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date <= $${cp}:: date`; countParams.push(toDate); }
         }
-        if (patientId) { cp++; countText += ` AND i.patient_id = $${ cp } `; countParams.push(patientId); }
-        if (mobile) { cp++; countText += ` AND p.phone ILIKE $${ cp } `; countParams.push(` % ${ mobile }% `); }
+        if (patientId) { cp++; countText += ` AND i.patient_id = $${cp} `; countParams.push(patientId); }
+        if (mobile) { cp++; countText += ` AND p.phone ILIKE $${cp} `; countParams.push(` % ${mobile}% `); }
 
         const countResult = await query(countText, countParams);
 
@@ -571,7 +571,7 @@ const updatePayment = async (req, res) => {
             return res.status(400).json({ error: 'Paid amount cannot be less than 0' });
         }
         if (parsedPaid > currentBalance) {
-            return res.status(400).json({ error: `Paid amount cannot exceed the Balance Amount(₹${ currentBalance.toFixed(2) })` });
+            return res.status(400).json({ error: `Paid amount cannot exceed the Balance Amount(₹${currentBalance.toFixed(2)})` });
         }
 
         const newPaidAmount = parseFloat(invoice.paid_amount) + parsedPaid;
@@ -601,7 +601,7 @@ const updatePayment = async (req, res) => {
             entityType: 'INVOICE',
             entityId: id,
             newValues: { paidAmount, paymentMode, newPaymentStatus },
-            details: `Updated payment for invoice ID ${ id } `
+            details: `Updated payment for invoice ID ${id} `
         });
 
         res.json({
@@ -675,7 +675,7 @@ const processRefund = async (req, res) => {
             entityType: 'INVOICE',
             entityId: id,
             newValues: { refundAmount, refundNote, newPaymentStatus },
-            details: `Processed refund of ₹${ parseFloat(refundAmount).toFixed(2) } for invoice ID ${ id }.Note: ${ refundNote } `
+            details: `Processed refund of ₹${parseFloat(refundAmount).toFixed(2)} for invoice ID ${id}.Note: ${refundNote} `
         });
 
         res.json({
@@ -736,7 +736,7 @@ const downloadInvoicePDF = async (req, res) => {
 
         // Set response headers
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename = ${ invoiceData.invoice_number.replace(/\//g, '_') }.pdf`);
+        res.setHeader('Content-Disposition', `attachment; filename = ${invoiceData.invoice_number.replace(/\//g, '_')}.pdf`);
 
         res.send(pdfBuffer);
 
