@@ -475,10 +475,13 @@ const getPreviousDayDues = async (req, res) => {
         const tenantId = req.tenantId;
 
         const result = await query(
-            `SELECT i.*, p.name as patient_name, p.uhid, p.phone as patient_phone, d.name as doctor_name
+            `SELECT i.*, p.name as patient_name, p.uhid, p.phone as patient_phone, d.name as doctor_name,
+                    u.name as created_by_name
        FROM invoices i
        LEFT JOIN patients p ON i.patient_id = p.id
        LEFT JOIN doctors d ON i.doctor_id = d.id
+       LEFT JOIN audit_logs al ON al.entity_id = i.id::varchar AND al.entity_type = 'INVOICE' AND al.action = 'CREATE'
+       LEFT JOIN users u ON al.user_id = u.id
        WHERE i.tenant_id = $1
          AND i.payment_status IN('PARTIAL', 'PENDING')
        ORDER BY i.created_at ASC

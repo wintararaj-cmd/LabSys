@@ -622,7 +622,7 @@ function Billing() {
                                         <th>Paid</th>
                                         <th>Balance Due</th>
                                         <th>Status</th>
-                                        <th>Action</th>
+                                        <th>Created By</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -652,17 +652,8 @@ function Billing() {
                                                     {due.payment_status}
                                                 </span>
                                             </td>
-                                            <td>
-                                                <button
-                                                    className="btn-icon"
-                                                    title="View Invoice"
-                                                    onClick={() => handleViewInvoice(due.id)}
-                                                >👁️</button>
-                                                <button
-                                                    className="btn-icon text-success"
-                                                    title="Collect Payment"
-                                                    onClick={() => handleOpenPaymentModal(due)}
-                                                >💰</button>
+                                            <td style={{ fontSize: '0.875rem', color: '#4b5563' }}>
+                                                {due.created_by_name || 'System / Unknown'}
                                             </td>
                                         </tr>
                                     ))}
