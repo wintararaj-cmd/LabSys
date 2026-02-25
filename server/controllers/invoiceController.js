@@ -190,6 +190,182 @@ const createInvoice = async (req, res) => {
 };
 
 /**
+ * Update an existing invoice
+ */
+const updateInvoice = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.tenantId;
+
+        const {
+            patientId,
+            doctorId,
+            introducerId,
+            introducerRaw,
+            department,
+            tests,
+            discountAmount = 0,
+            paymentMode,
+            paidAmount,
+        } = req.body;
+
+        // Validation
+        if (!patientId || !tests || tests.length === 0) {
+            return res.status(400).json({ error: 'Patient and tests are required' });
+        }
+        if (doctorId === undefined) {
+            return res.status(400).json({ error: 'Referring Doctor is mandatory' });
+        }
+
+        const client = await require('../config/db').pool.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            const existingInvoiceRes = await client.query(
+                'SELECT * FROM invoices WHERE id = $1 AND tenant_id = $2 FOR UPDATE',
+                [id, tenantId]
+            );
+
+            if (existingInvoiceRes.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'Invoice not found' });
+            }
+
+            const existingInvoice = existingInvoiceRes.rows[0];
+
+            // Calculate totals
+            let totalAmount = 0;
+            let totalTax = 0;
+
+            tests.forEach(test => {
+                totalAmount += parseFloat(test.price);
+                const gst = calculateGST(test.price, test.gstPercentage || 0);
+                totalTax += gst.totalGst;
+            });
+
+            const netAmount = totalAmount + totalTax - discountAmount;
+
+            // Allow preserving old paidAmount if not passed, but frontend usually passes it
+            const finalPaidAmount = paidAmount !== undefined ? parseFloat(paidAmount) : parseFloat(existingInvoice.paid_amount);
+
+            if (finalPaidAmount < 0) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: 'Amount Paid cannot be less than 0' });
+            }
+            if (finalPaidAmount > netAmount) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: `Amount Paid cannot exceed the Net Amount (₹${netAmount.toFixed(2)})` });
+            }
+
+            const balanceAmount = netAmount - finalPaidAmount;
+            const paymentStatus = balanceAmount <= 0 ? 'PAID' : (finalPaidAmount > 0 ? 'PARTIAL' : 'PENDING');
+
+            // Calculate commission
+            const commission = await calculateCommission({
+                tenantId,
+                department: department || existingInvoice.department,
+                doctorId: doctorId ? parseInt(doctorId) : null,
+                introducerId: introducerId ? parseInt(introducerId) : null,
+                introducerRaw: introducerRaw || '',
+                netAmount
+            });
+
+            // Update invoice
+            const updateRes = await client.query(
+                `UPDATE invoices SET
+                    patient_id = $1, doctor_id = $2, introducer_id = $3, introducer_raw = $4,
+                    department = $5, total_amount = $6, discount_amount = $7,
+                    tax_amount = $8, net_amount = $9, paid_amount = $10,
+                    balance_amount = $11, payment_status = $12, payment_mode = $13,
+                    commission_mode = $14, doctor_commission = $15, introducer_commission = $16
+                 WHERE id = $17 AND tenant_id = $18
+                 RETURNING *`,
+                [
+                    patientId, doctorId, commission.introducerId, introducerRaw,
+                    department || existingInvoice.department, totalAmount, discountAmount,
+                    totalTax, netAmount, finalPaidAmount,
+                    balanceAmount, paymentStatus, paymentMode || existingInvoice.payment_mode,
+                    commission.mode, commission.doctorCommission, commission.introducerCommission,
+                    id, tenantId
+                ]
+            );
+
+            // Fetch existing items
+            const existingItemsRes = await client.query('SELECT * FROM invoice_items WHERE invoice_id = $1', [id]);
+            const existingItems = existingItemsRes.rows;
+
+            const existingTestIds = existingItems.map(item => item.test_id);
+            const newTestIds = tests.map(test => test.testId);
+
+            const testsToAdd = tests.filter(t => !existingTestIds.includes(t.testId));
+            const testsToRemove = existingTestIds.filter(tId => !newTestIds.includes(tId));
+            const testsToUpdate = tests.filter(t => existingTestIds.includes(t.testId));
+
+            // Remove deleted items and their PENDING reports
+            if (testsToRemove.length > 0) {
+                await client.query('DELETE FROM invoice_items WHERE invoice_id = $1 AND test_id = ANY($2)', [id, testsToRemove]);
+                await client.query('DELETE FROM reports WHERE invoice_id = $1 AND test_id = ANY($2) AND status = $3', [id, testsToRemove, 'PENDING']);
+            }
+
+            // Update existing items
+            for (const test of testsToUpdate) {
+                await client.query(
+                    `UPDATE invoice_items SET price = $1, gst_percentage = $2
+                     WHERE invoice_id = $3 AND test_id = $4`,
+                    [test.price, test.gstPercentage || 0, id, test.testId]
+                );
+            }
+
+            // Add new items
+            for (const test of testsToAdd) {
+                const datePart = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+                const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+                const sampleId = test.sampleId || `SID${datePart}${randomPart}`;
+
+                await client.query(
+                    `INSERT INTO invoice_items (invoice_id, test_id, price, gst_percentage)
+                     VALUES ($1, $2, $3, $4)`,
+                    [id, test.testId, test.price, test.gstPercentage || 0]
+                );
+
+                await client.query(
+                    `INSERT INTO reports (invoice_id, test_id, status, sample_id)
+                     VALUES ($1, $2, 'PENDING', $3)`,
+                    [id, test.testId, sampleId]
+                );
+            }
+
+            await logAuditEvent({
+                tenantId,
+                userId: req.user?.userId,
+                action: 'UPDATE',
+                entityType: 'INVOICE',
+                entityId: id,
+                details: \`Updated invoice \${existingInvoice.invoice_number} for patient ID \${patientId}\`
+            });
+
+            await client.query('COMMIT');
+
+            res.status(200).json({
+                message: 'Invoice updated successfully',
+                invoice: updateRes.rows[0],
+            });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+
+    } catch (error) {
+        console.error('Update invoice error:', error);
+        res.status(500).json({ error: 'Failed to update invoice' });
+    }
+};
+
+/**
  * Get all invoices with filters
  */
 const getInvoices = async (req, res) => {
@@ -213,48 +389,48 @@ const getInvoices = async (req, res) => {
       LEFT JOIN patients p ON i.patient_id = p.id
       LEFT JOIN doctors d ON i.doctor_id = d.id
       WHERE i.tenant_id = $1
-    `;
+                `;
         let params = [tenantId];
         let paramCount = 1;
 
         // Add filters
         if (status) {
             paramCount++;
-            queryText += ` AND i.payment_status = $${paramCount}`;
+            queryText += ` AND i.payment_status = $${ paramCount }`;
             params.push(status);
         }
 
         if (date) {
             paramCount++;
-            queryText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date = $${paramCount}::date`;
+            queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date = $${ paramCount }:: date`;
             params.push(date);
         } else {
             if (fromDate) {
                 paramCount++;
-                queryText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $${paramCount}::date`;
+                queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date >= $${ paramCount }:: date`;
                 params.push(fromDate);
             }
 
             if (toDate) {
                 paramCount++;
-                queryText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $${paramCount}::date`;
+                queryText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date <= $${ paramCount }:: date`;
                 params.push(toDate);
             }
         }
 
         if (patientId) {
             paramCount++;
-            queryText += ` AND i.patient_id = $${paramCount}`;
+            queryText += ` AND i.patient_id = $${ paramCount }`;
             params.push(patientId);
         }
 
         if (mobile) {
             paramCount++;
-            queryText += ` AND p.phone ILIKE $${paramCount}`;
-            params.push(`%${mobile}%`);
+            queryText += ` AND p.phone ILIKE $${ paramCount }`;
+            params.push(`% ${ mobile } % `);
         }
 
-        queryText += ` ORDER BY i.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+        queryText += ` ORDER BY i.created_at DESC LIMIT $${ paramCount + 1} OFFSET $${ paramCount + 2 } `;
         params.push(limit, offset);
 
         const result = await query(queryText, params);
@@ -264,17 +440,17 @@ const getInvoices = async (req, res) => {
       SELECT COUNT(*) FROM invoices i
       LEFT JOIN patients p ON i.patient_id = p.id
       WHERE i.tenant_id = $1
-    `;
+            `;
         let countParams = [tenantId];
         let cp = 1;
-        if (status) { cp++; countText += ` AND i.payment_status = $${cp}`; countParams.push(status); }
-        if (date) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date = $${cp}::date`; countParams.push(date); }
+        if (status) { cp++; countText += ` AND i.payment_status = $${ cp } `; countParams.push(status); }
+        if (date) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date = $${ cp }:: date`; countParams.push(date); }
         else {
-            if (fromDate) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $${cp}::date`; countParams.push(fromDate); }
-            if (toDate) { cp++; countText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $${cp}::date`; countParams.push(toDate); }
+            if (fromDate) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date >= $${ cp }:: date`; countParams.push(fromDate); }
+            if (toDate) { cp++; countText += ` AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date <= $${ cp }:: date`; countParams.push(toDate); }
         }
-        if (patientId) { cp++; countText += ` AND i.patient_id = $${cp}`; countParams.push(patientId); }
-        if (mobile) { cp++; countText += ` AND p.phone ILIKE $${cp}`; countParams.push(`%${mobile}%`); }
+        if (patientId) { cp++; countText += ` AND i.patient_id = $${ cp } `; countParams.push(patientId); }
+        if (mobile) { cp++; countText += ` AND p.phone ILIKE $${ cp } `; countParams.push(` % ${ mobile }% `); }
 
         const countResult = await query(countText, countParams);
 
@@ -304,8 +480,8 @@ const getPreviousDayDues = async (req, res) => {
        LEFT JOIN patients p ON i.patient_id = p.id
        LEFT JOIN doctors d ON i.doctor_id = d.id
        WHERE i.tenant_id = $1
-         AND i.payment_status IN ('PARTIAL', 'PENDING')
-         AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date
+         AND i.payment_status IN('PARTIAL', 'PENDING')
+        AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date < (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date
        ORDER BY i.created_at ASC
        LIMIT 100`,
             [tenantId]
@@ -330,7 +506,7 @@ const getInvoiceById = async (req, res) => {
         // Get invoice details
         const invoiceResult = await query(
             `SELECT i.*, p.name as patient_name, p.uhid, p.age, p.gender,
-              d.name as doctor_name, d.specialization
+            d.name as doctor_name, d.specialization
        FROM invoices i
        LEFT JOIN patients p ON i.patient_id = p.id
        LEFT JOIN doctors d ON i.doctor_id = d.id
@@ -395,7 +571,7 @@ const updatePayment = async (req, res) => {
             return res.status(400).json({ error: 'Paid amount cannot be less than 0' });
         }
         if (parsedPaid > currentBalance) {
-            return res.status(400).json({ error: `Paid amount cannot exceed the Balance Amount (₹${currentBalance.toFixed(2)})` });
+            return res.status(400).json({ error: `Paid amount cannot exceed the Balance Amount(₹${ currentBalance.toFixed(2) })` });
         }
 
         const newPaidAmount = parseFloat(invoice.paid_amount) + parsedPaid;
@@ -414,7 +590,7 @@ const updatePayment = async (req, res) => {
             `UPDATE invoices 
        SET paid_amount = $1, balance_amount = $2, payment_status = $3, payment_mode = $4
        WHERE id = $5 AND tenant_id = $6
-       RETURNING *`,
+        RETURNING * `,
             [newPaidAmount, newBalanceAmount, newPaymentStatus, paymentMode, id, tenantId]
         );
 
@@ -425,7 +601,7 @@ const updatePayment = async (req, res) => {
             entityType: 'INVOICE',
             entityId: id,
             newValues: { paidAmount, paymentMode, newPaymentStatus },
-            details: `Updated payment for invoice ID ${id}`
+            details: `Updated payment for invoice ID ${ id } `
         });
 
         res.json({
@@ -488,7 +664,7 @@ const processRefund = async (req, res) => {
             `UPDATE invoices 
              SET refund_amount = $1, refund_note = $2, balance_amount = $3, payment_status = $4
              WHERE id = $5 AND tenant_id = $6
-             RETURNING *`,
+        RETURNING * `,
             [newRefundTotal, refundNote || '', newBalanceAmount, newPaymentStatus, id, tenantId]
         );
 
@@ -499,7 +675,7 @@ const processRefund = async (req, res) => {
             entityType: 'INVOICE',
             entityId: id,
             newValues: { refundAmount, refundNote, newPaymentStatus },
-            details: `Processed refund of ₹${parseFloat(refundAmount).toFixed(2)} for invoice ID ${id}. Note: ${refundNote}`
+            details: `Processed refund of ₹${ parseFloat(refundAmount).toFixed(2) } for invoice ID ${ id }.Note: ${ refundNote } `
         });
 
         res.json({
@@ -525,9 +701,9 @@ const downloadInvoicePDF = async (req, res) => {
         // Get invoice details with patient, doctor, and tenant info
         const invoiceResult = await query(
             `SELECT i.*, p.name as patient_name, p.uhid, p.age, p.gender, p.phone, p.address,
-               d.name as doctor_name,
-               t.name as lab_name, t.address as lab_address, 
-               t.contact_phone as lab_phone, t.contact_email as lab_email, t.gst_number
+            d.name as doctor_name,
+            t.name as lab_name, t.address as lab_address,
+            t.contact_phone as lab_phone, t.contact_email as lab_email, t.gst_number
         FROM invoices i
         JOIN patients p ON i.patient_id = p.id
         LEFT JOIN doctors d ON i.doctor_id = d.id
@@ -560,7 +736,7 @@ const downloadInvoicePDF = async (req, res) => {
 
         // Set response headers
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=${invoiceData.invoice_number.replace(/\//g, '_')}.pdf`);
+        res.setHeader('Content-Disposition', `attachment; filename = ${ invoiceData.invoice_number.replace(/\//g, '_') }.pdf`);
 
         res.send(pdfBuffer);
 
@@ -572,6 +748,7 @@ const downloadInvoicePDF = async (req, res) => {
 
 module.exports = {
     createInvoice,
+    updateInvoice,
     getInvoices,
     getInvoiceById,
     updatePayment,
