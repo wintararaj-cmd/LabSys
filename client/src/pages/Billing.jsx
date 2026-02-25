@@ -48,6 +48,8 @@ function Billing() {
     const [isSearching, setIsSearching] = useState(false);
     const [focusedPatientIndex, setFocusedPatientIndex] = useState(-1);
     const [focusedDoctorIndex, setFocusedDoctorIndex] = useState(-1);
+    const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false);
+    const doctorInputRef = React.useRef(null);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [showPatientModal, setShowPatientModal] = useState(false);
     const [newPatient, setNewPatient] = useState({
@@ -235,6 +237,12 @@ function Billing() {
         setPatientSearch('');
         setPatientResults([]);
         setFocusedPatientIndex(-1);
+        
+        setTimeout(() => {
+            if (doctorInputRef.current) {
+                doctorInputRef.current.focus();
+            }
+        }, 100);
     };
 
     const handleNewPatientSubmit = async (e) => {
@@ -707,12 +715,16 @@ function Billing() {
                                         <div className="input-group">
                                             <input
                                                 type="text"
+                                                ref={doctorInputRef}
                                                 className={`form-input ${!formData.doctor_id ? 'input-required' : ''}`}
                                                 placeholder="🔍 Search Doctor by Name..."
                                                 value={doctorSearch}
+                                                onFocus={() => setIsDoctorDropdownOpen(true)}
+                                                onBlur={() => setTimeout(() => setIsDoctorDropdownOpen(false), 200)}
                                                 onChange={(e) => {
                                                     setDoctorSearch(e.target.value);
                                                     setFocusedDoctorIndex(-1);
+                                                    setIsDoctorDropdownOpen(true);
                                                 }}
                                                 onKeyDown={(e) => {
                                                     if (e.key === 'ArrowDown') {
@@ -725,32 +737,38 @@ function Billing() {
                                                         e.preventDefault();
                                                         if (focusedDoctorIndex >= 0 && focusedDoctorIndex < filteredDoctorsList.length) {
                                                             setFormData({ ...formData, doctor_id: filteredDoctorsList[focusedDoctorIndex].id });
+                                                            setIsDoctorDropdownOpen(false);
                                                         }
                                                     }
                                                 }}
                                             />
                                         </div>
 
-                                        <div className="patient-results-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                                            {filteredDoctorsList.map((doc, idx) => (
-                                                <div
-                                                    key={doc.id}
-                                                    className={`patient-result-item ${focusedDoctorIndex === idx ? 'focused' : ''}`}
-                                                    onClick={() => setFormData({ ...formData, doctor_id: doc.id })}
-                                                    onMouseEnter={() => setFocusedDoctorIndex(idx)}
-                                                >
-                                                    <div className="p-name">{doc.name}</div>
-                                                    {!doc.isSpecial && (
-                                                        <div className="p-meta">{doc.specialization || 'General'} {doc.commission_percentage ? `(${doc.commission_percentage}%)` : ''}</div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {doctorSearch && filteredDoctorsList.length === 0 && (
-                                                <div style={{ padding: '12px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
-                                                    No doctors found matching "{doctorSearch}"
-                                                </div>
-                                            )}
-                                        </div>
+                                        {isDoctorDropdownOpen && (
+                                            <div className="patient-results-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                {filteredDoctorsList.map((doc, idx) => (
+                                                    <div
+                                                        key={doc.id}
+                                                        className={`patient-result-item ${focusedDoctorIndex === idx ? 'focused' : ''}`}
+                                                        onClick={() => {
+                                                            setFormData({ ...formData, doctor_id: doc.id });
+                                                            setIsDoctorDropdownOpen(false);
+                                                        }}
+                                                        onMouseEnter={() => setFocusedDoctorIndex(idx)}
+                                                    >
+                                                        <div className="p-name">{doc.name}</div>
+                                                        {!doc.isSpecial && (
+                                                            <div className="p-meta">{doc.specialization || 'General'} {doc.commission_percentage ? `(${doc.commission_percentage}%)` : ''}</div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {doctorSearch && filteredDoctorsList.length === 0 && (
+                                                    <div style={{ padding: '12px', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
+                                                        No doctors found matching "{doctorSearch}"
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -80,21 +80,60 @@ const getCashBook = async (req, res) => {
         }
 
         const queryText = `
-            WITH combined_cash AS (
-                -- 1. Patient Invoices (INWARD)
+            WITH subsequent_payments AS (
+                SELECT 
+                    NULLIF(entity_id, '')::int as invoice_id,
+                    SUM((new_values->>'paidAmount')::numeric) as total_subsequent
+                FROM audit_logs
+                WHERE tenant_id = $1 
+                  AND entity_type = 'INVOICE' 
+                  AND action = 'UPDATE'
+                  AND entity_id ~ '^[0-9]+$'
+                  AND new_values ? 'paidAmount'
+                  AND (new_values->>'paidAmount')::numeric > 0
+                GROUP BY 1
+            ),
+            initial_payments AS (
                 SELECT 
                     i.created_at, 
                     i.invoice_number as reference,
-                    i.invoice_number as invoice_number,
+                    i.invoice_number,
                     p.name as particulars,
                     p.name as patient_name,
                     COALESCE(i.payment_mode, 'CASH') as payment_mode, 
-                    i.paid_amount as amount,
+                    i.paid_amount - COALESCE(sp.total_subsequent, 0) as amount,
                     'INWARD' as type,
                     'Patient Payment' as source
                 FROM invoices i
                 JOIN patients p ON i.patient_id = p.id
-                WHERE i.tenant_id = $1 AND COALESCE(i.paid_amount, 0) > 0
+                LEFT JOIN subsequent_payments sp ON i.id = sp.invoice_id
+                WHERE i.tenant_id = $1 AND (i.paid_amount - COALESCE(sp.total_subsequent, 0)) > 0
+            ),
+            later_payments AS (
+                SELECT 
+                    al.created_at, 
+                    i.invoice_number as reference,
+                    i.invoice_number,
+                    p.name as particulars,
+                    p.name as patient_name,
+                    COALESCE(al.new_values->>'paymentMode', 'CASH') as payment_mode, 
+                    (al.new_values->>'paidAmount')::numeric as amount,
+                    'INWARD' as type,
+                    'Patient Payment (Due)' as source
+                FROM audit_logs al
+                JOIN invoices i ON NULLIF(al.entity_id, '')::int = i.id
+                JOIN patients p ON i.patient_id = p.id
+                WHERE al.tenant_id = $1 
+                  AND al.entity_type = 'INVOICE' 
+                  AND al.action = 'UPDATE'
+                  AND al.entity_id ~ '^[0-9]+$'
+                  AND al.new_values ? 'paidAmount'
+                  AND (al.new_values->>'paidAmount')::numeric > 0
+            ),
+            combined_cash AS (
+                SELECT * FROM initial_payments
+                UNION ALL
+                SELECT * FROM later_payments
             )
             SELECT * FROM combined_cash
             WHERE 1=1
