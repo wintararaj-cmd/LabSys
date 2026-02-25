@@ -19,7 +19,7 @@ function Billing() {
     const [editMode, setEditMode] = useState(false);
     const [editingInvoiceId, setEditingInvoiceId] = useState(null);
 
-    // Previous day dues
+    // Outstanding dues
     const [previousDues, setPreviousDues] = useState([]);
     const [duesLoading, setDuesLoading] = useState(true);
     const [showDues, setShowDues] = useState(true);
@@ -600,7 +600,7 @@ function Billing() {
                         <div className="dues-banner-title">
                             <span className="dues-icon">⚠️</span>
                             <span>
-                                <strong>Outstanding Dues from Previous Days</strong>
+                                <strong>Outstanding Dues</strong>
                                 <span className="dues-count-badge">{previousDues.length} patient{previousDues.length !== 1 ? 's' : ''}</span>
                                 <span className="dues-total-badge">
                                     ₹{previousDues.reduce((s, d) => s + parseFloat(d.balance_amount || 0), 0).toFixed(2)} pending

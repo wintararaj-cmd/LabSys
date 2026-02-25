@@ -481,7 +481,6 @@ const getPreviousDayDues = async (req, res) => {
        LEFT JOIN doctors d ON i.doctor_id = d.id
        WHERE i.tenant_id = $1
          AND i.payment_status IN('PARTIAL', 'PENDING')
-        AND(i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date < (CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata'):: date
        ORDER BY i.created_at ASC
        LIMIT 100`,
             [tenantId]
