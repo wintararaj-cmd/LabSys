@@ -237,7 +237,7 @@ function Billing() {
         setPatientSearch('');
         setPatientResults([]);
         setFocusedPatientIndex(-1);
-        
+
         setTimeout(() => {
             if (doctorInputRef.current) {
                 doctorInputRef.current.focus();
@@ -738,13 +738,14 @@ function Billing() {
                                                         if (focusedDoctorIndex >= 0 && focusedDoctorIndex < filteredDoctorsList.length) {
                                                             setFormData({ ...formData, doctor_id: filteredDoctorsList[focusedDoctorIndex].id });
                                                             setIsDoctorDropdownOpen(false);
+                                                            setDoctorSearch('');
                                                         }
                                                     }
                                                 }}
                                             />
                                         </div>
 
-                                        {isDoctorDropdownOpen && (
+                                        {isDoctorDropdownOpen && (doctorSearch.length >= 0) && (
                                             <div className="patient-results-dropdown" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                                 {filteredDoctorsList.map((doc, idx) => (
                                                     <div
@@ -753,6 +754,7 @@ function Billing() {
                                                         onClick={() => {
                                                             setFormData({ ...formData, doctor_id: doc.id });
                                                             setIsDoctorDropdownOpen(false);
+                                                            setDoctorSearch('');
                                                         }}
                                                         onMouseEnter={() => setFocusedDoctorIndex(idx)}
                                                     >
