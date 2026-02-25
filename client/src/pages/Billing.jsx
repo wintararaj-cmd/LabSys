@@ -628,7 +628,16 @@ function Billing() {
                                 <tbody>
                                     {previousDues.map(due => (
                                         <tr key={due.id} className="dues-row">
-                                            <td><span className="badge badge-info">{due.invoice_number}</span></td>
+                                            <td>
+                                                <span
+                                                    className="badge badge-info"
+                                                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                    onClick={() => handleViewInvoice(due.id)}
+                                                    title="View Invoice"
+                                                >
+                                                    {due.invoice_number}
+                                                </span>
+                                            </td>
                                             <td>
                                                 <div className="font-semibold">{due.patient_name}</div>
                                                 <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{due.uhid}</div>
@@ -1181,8 +1190,8 @@ function Billing() {
                                 {invoices.map((invoice) => (
                                     <tr key={invoice.id}>
                                         <td>
-                                            <span 
-                                                className="badge badge-info" 
+                                            <span
+                                                className="badge badge-info"
                                                 style={{ cursor: 'pointer', textDecoration: 'underline' }}
                                                 onClick={() => handleViewInvoice(invoice.id)}
                                                 title="View Invoice"
