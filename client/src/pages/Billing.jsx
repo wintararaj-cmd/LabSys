@@ -1181,7 +1181,14 @@ function Billing() {
                                 {invoices.map((invoice) => (
                                     <tr key={invoice.id}>
                                         <td>
-                                            <span className="badge badge-info">{invoice.invoice_number}</span>
+                                            <span 
+                                                className="badge badge-info" 
+                                                style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                                                onClick={() => handleViewInvoice(invoice.id)}
+                                                title="View Invoice"
+                                            >
+                                                {invoice.invoice_number}
+                                            </span>
                                         </td>
                                         <td className="font-semibold">{invoice.patient_name}</td>
                                         <td>{new Date(invoice.created_at).toLocaleDateString()}</td>
@@ -1256,7 +1263,7 @@ function Billing() {
                             <button className="close-btn" onClick={() => setShowViewModal(false)}>✕</button>
                         </div>
                         <div className="modal-body">
-                            <div className="invoice-header-info">
+                            <div className="invoice-header-info" style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <div>
                                     <p><strong>Invoice #:</strong> {selectedInvoice.invoice_number}</p>
                                     <p><strong>Date:</strong> {new Date(selectedInvoice.created_at).toLocaleDateString()}</p>
@@ -1270,6 +1277,24 @@ function Billing() {
                                     <p><strong>Patient:</strong> {selectedInvoice.patient_name}</p>
                                     <p><strong>UHID:</strong> {selectedInvoice.uhid}</p>
                                     <p><strong>Doctor:</strong> {selectedInvoice.doctor_name || 'Self'}</p>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', justifyContent: 'center' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={() => { setShowViewModal(false); handleEditInvoice(selectedInvoice.id); }}
+                                        style={{ padding: '6px 16px', fontSize: '14px', width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                    >
+                                        <span>✏️</span> Edit
+                                    </button>
+                                    {parseFloat(selectedInvoice.balance_amount) > 0 && (
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={() => { setShowViewModal(false); handleOpenPaymentModal(selectedInvoice); }}
+                                            style={{ padding: '6px 16px', fontSize: '14px', width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981', borderColor: '#10b981' }}
+                                        >
+                                            <span>💰</span> Pay
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
