@@ -53,6 +53,10 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) CHECK (role IN ('ADMIN', 'DOCTOR', 'TECHNICIAN', 'RECEPTIONIST', 'RADIOLOGIST', 'ACCOUNTANT')),
     is_active BOOLEAN DEFAULT TRUE,
+    can_view BOOLEAN DEFAULT TRUE,
+    can_create BOOLEAN DEFAULT TRUE,
+    can_update BOOLEAN DEFAULT TRUE,
+    sessions_invalidated_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

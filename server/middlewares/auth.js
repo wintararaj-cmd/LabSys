@@ -66,11 +66,20 @@ const checkRole = (allowedRoles) => {
         }
 
         if (!allowedRoles.includes(req.user.role)) {
-            return res.status(403).json({
-                error: 'Forbidden: Insufficient permissions',
-                required: allowedRoles,
-                current: req.user.role
-            });
+            // Fallback to specific permissions
+            let hasPermission = false;
+            
+            if (req.method === 'GET' && req.user.canView) hasPermission = true;
+            if (req.method === 'POST' && req.user.canCreate) hasPermission = true;
+            if ((req.method === 'PUT' || req.method === 'PATCH') && req.user.canUpdate) hasPermission = true;
+            
+            if (!hasPermission) {
+                return res.status(403).json({
+                    error: 'Forbidden: Insufficient permissions',
+                    required: allowedRoles,
+                    current: req.user.role
+                });
+            }
         }
 
         next();
