@@ -16,7 +16,8 @@ const Branches = () => {
 
     const [branchForm, setBranchForm] = useState({ name: '', address: '', phone: '' });
     const [userForm, setUserForm] = useState({
-        name: '', email: '', password: '', role: 'TECHNICIAN', branchId: ''
+        name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '',
+        canView: true, canCreate: true, canUpdate: true
     });
 
     useEffect(() => {
@@ -75,7 +76,7 @@ const Branches = () => {
                 await userAPI.create(userForm);
                 alert('User created successfully!');
             }
-            setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '' });
+            setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '', canView: true, canCreate: true, canUpdate: true });
             setShowUserForm(false);
             setEditingUser(null);
             fetchData();
@@ -91,7 +92,10 @@ const Branches = () => {
             email: user.email,
             password: '', 
             role: user.role,
-            branchId: user.branch_id || ''
+            branchId: user.branch_id || '',
+            canView: user.can_view ?? true,
+            canCreate: user.can_create ?? true,
+            canUpdate: user.can_update ?? true
         });
         setShowUserForm(true);
     };
@@ -158,7 +162,7 @@ const Branches = () => {
                         <div className="actions-bar">
                             <button className="btn-primary" onClick={() => {
                                 setEditingUser(null);
-                                setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '' });
+                                setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '', canView: true, canCreate: true, canUpdate: true });
                                 setShowUserForm(true);
                             }}>
                                 ➕ New Staff Member
@@ -172,6 +176,7 @@ const Branches = () => {
                                     <th>Role</th>
                                     <th>Branch</th>
                                     <th>Email</th>
+                                    <th>Permissions</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -183,6 +188,13 @@ const Branches = () => {
                                         <td><span className="badge badge-info">{user.role}</span></td>
                                         <td>{user.branch_name || 'All Branches'}</td>
                                         <td>{user.email}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', gap: '4px', fontSize: '10px' }}>
+                                                <span className={`badge ${user.can_view ? 'badge-success' : 'badge-error'}`}>V</span>
+                                                <span className={`badge ${user.can_create ? 'badge-success' : 'badge-error'}`}>C</span>
+                                                <span className={`badge ${user.can_update ? 'badge-success' : 'badge-error'}`}>U</span>
+                                            </div>
+                                        </td>
                                         <td>
                                             <span className={`badge ${user.is_active ? 'badge-success' : 'badge-error'}`}>
                                                 {user.is_active ? 'Active' : 'Inactive'}
@@ -270,6 +282,23 @@ const Branches = () => {
                                         <option key={b.id} value={b.id}>{b.name}</option>
                                     ))}
                                 </select>
+                            </div>
+                            <div className="form-group permissions-group">
+                                <label>Permissions</label>
+                                <div style={{ display: 'flex', gap: '15px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', fontWeight: 'normal', cursor: 'pointer' }}>
+                                        <input type="checkbox" checked={userForm.canView} onChange={e => setUserForm({ ...userForm, canView: e.target.checked })} style={{ width: 'auto', marginRight: '5px' }} />
+                                        View
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', fontWeight: 'normal', cursor: 'pointer' }}>
+                                        <input type="checkbox" checked={userForm.canCreate} onChange={e => setUserForm({ ...userForm, canCreate: e.target.checked })} style={{ width: 'auto', marginRight: '5px' }} />
+                                        Create
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', fontWeight: 'normal', cursor: 'pointer' }}>
+                                        <input type="checkbox" checked={userForm.canUpdate} onChange={e => setUserForm({ ...userForm, canUpdate: e.target.checked })} style={{ width: 'auto', marginRight: '5px' }} />
+                                        Update
+                                    </label>
+                                </div>
                             </div>
                             <div className="form-actions">
                                 <button type="submit" className="btn-save">{editingUser ? 'Save Changes' : 'Create User'}</button>

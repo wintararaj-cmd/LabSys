@@ -105,6 +105,7 @@ const login = async (req, res) => {
         // Get user with tenant info
         const result = await query(
             `SELECT u.id, u.tenant_id, u.branch_id, u.name, u.email, u.password_hash, u.role, u.is_active,
+              u.can_view, u.can_create, u.can_update,
               t.name as tenant_name, t.subscription_plan
        FROM users u
        JOIN tenants t ON u.tenant_id = t.id
@@ -138,6 +139,9 @@ const login = async (req, res) => {
                 branchId: user.branch_id,
                 role: user.role,
                 email: user.email,
+                canView: user.can_view,
+                canCreate: user.can_create,
+                canUpdate: user.can_update,
             },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -152,6 +156,9 @@ const login = async (req, res) => {
                 role: user.role,
                 tenantName: user.tenant_name,
                 subscriptionPlan: user.subscription_plan,
+                canView: user.can_view,
+                canCreate: user.can_create,
+                canUpdate: user.can_update,
             },
         });
 
@@ -183,6 +190,9 @@ const refreshToken = async (req, res) => {
                 branchId: decoded.branchId,
                 role: decoded.role,
                 email: decoded.email,
+                canView: decoded.canView,
+                canCreate: decoded.canCreate,
+                canUpdate: decoded.canUpdate,
             },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }

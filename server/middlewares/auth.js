@@ -41,6 +41,9 @@ const verifyToken = async (req, res, next) => {
             role: decoded.role,
             branchId: decoded.branchId,
             email: decoded.email,
+            canView: decoded.canView,
+            canCreate: decoded.canCreate,
+            canUpdate: decoded.canUpdate,
         };
 
         next();
