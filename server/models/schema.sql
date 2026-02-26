@@ -56,6 +56,7 @@ CREATE TABLE users (
     can_view BOOLEAN DEFAULT TRUE,
     can_create BOOLEAN DEFAULT TRUE,
     can_update BOOLEAN DEFAULT TRUE,
+    module_permissions JSONB DEFAULT '{}'::jsonb,
     sessions_invalidated_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

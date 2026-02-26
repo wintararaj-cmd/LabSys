@@ -102,10 +102,9 @@ const login = async (req, res) => {
             return res.status(400).json({ error: 'Email and password required' });
         }
 
-        // Get user with tenant info
         const result = await query(
             `SELECT u.id, u.tenant_id, u.branch_id, u.name, u.email, u.password_hash, u.role, u.is_active,
-              u.can_view, u.can_create, u.can_update,
+              u.can_view, u.can_create, u.can_update, u.module_permissions,
               t.name as tenant_name, t.subscription_plan
        FROM users u
        JOIN tenants t ON u.tenant_id = t.id
@@ -142,6 +141,7 @@ const login = async (req, res) => {
                 canView: user.can_view,
                 canCreate: user.can_create,
                 canUpdate: user.can_update,
+                modulePermissions: user.module_permissions || {},
             },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -159,6 +159,7 @@ const login = async (req, res) => {
                 canView: user.can_view,
                 canCreate: user.can_create,
                 canUpdate: user.can_update,
+                modulePermissions: user.module_permissions || {},
             },
         });
 
@@ -193,6 +194,7 @@ const refreshToken = async (req, res) => {
                 canView: decoded.canView,
                 canCreate: decoded.canCreate,
                 canUpdate: decoded.canUpdate,
+                modulePermissions: decoded.modulePermissions || {},
             },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }

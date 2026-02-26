@@ -3,6 +3,21 @@ import axios from 'axios';
 import { branchAPI, userAPI } from '../services/api';
 import './Branches.css';
 
+const MODULES = [
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'billing', label: 'Billing' },
+    { id: 'reports', label: 'Reports' },
+    { id: 'radiology', label: 'Radiology' },
+    { id: 'finance', label: 'Finance' },
+    { id: 'tests', label: 'Test Master' },
+    { id: 'doctors', label: 'Doctors' },
+    { id: 'introducers', label: 'Introducers' },
+    { id: 'inventory', label: 'Inventory' },
+    { id: 'purchases', label: 'Purchases' },
+    { id: 'external_labs', label: 'External Labs' },
+    { id: 'sample_tracking', label: 'Sample Tracking' }
+];
+
 const Branches = () => {
     const [branches, setBranches] = useState([]);
     const [users, setUsers] = useState([]);
@@ -17,7 +32,7 @@ const Branches = () => {
     const [branchForm, setBranchForm] = useState({ name: '', address: '', phone: '' });
     const [userForm, setUserForm] = useState({
         name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '',
-        canView: true, canCreate: true, canUpdate: true
+        canView: true, canCreate: true, canUpdate: true, modulePermissions: {}
     });
 
     useEffect(() => {
@@ -76,7 +91,7 @@ const Branches = () => {
                 await userAPI.create(userForm);
                 alert('User created successfully!');
             }
-            setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '', canView: true, canCreate: true, canUpdate: true });
+            setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '', canView: true, canCreate: true, canUpdate: true, modulePermissions: {} });
             setShowUserForm(false);
             setEditingUser(null);
             fetchData();
@@ -95,7 +110,8 @@ const Branches = () => {
             branchId: user.branch_id || '',
             canView: user.can_view ?? true,
             canCreate: user.can_create ?? true,
-            canUpdate: user.can_update ?? true
+            canUpdate: user.can_update ?? true,
+            modulePermissions: user.module_permissions || {}
         });
         setShowUserForm(true);
     };
@@ -162,7 +178,7 @@ const Branches = () => {
                         <div className="actions-bar">
                             <button className="btn-primary" onClick={() => {
                                 setEditingUser(null);
-                                setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '', canView: true, canCreate: true, canUpdate: true });
+                                setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '', canView: true, canCreate: true, canUpdate: true, modulePermissions: {} });
                                 setShowUserForm(true);
                             }}>
                                 ➕ New Staff Member
@@ -284,20 +300,46 @@ const Branches = () => {
                                 </select>
                             </div>
                             <div className="form-group permissions-group">
-                                <label>Permissions</label>
-                                <div style={{ display: 'flex', gap: '15px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', fontWeight: 'normal', cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={userForm.canView} onChange={e => setUserForm({ ...userForm, canView: e.target.checked })} style={{ width: 'auto', marginRight: '5px' }} />
-                                        View
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', fontWeight: 'normal', cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={userForm.canCreate} onChange={e => setUserForm({ ...userForm, canCreate: e.target.checked })} style={{ width: 'auto', marginRight: '5px' }} />
-                                        Create
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', fontWeight: 'normal', cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={userForm.canUpdate} onChange={e => setUserForm({ ...userForm, canUpdate: e.target.checked })} style={{ width: 'auto', marginRight: '5px' }} />
-                                        Update
-                                    </label>
+                                <label style={{ marginBottom: '10px', display: 'block' }}>Module Permissions</label>
+                                <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+                                    <table className="table" style={{ margin: 0, width: '100%', fontSize: '13px' }}>
+                                        <thead style={{ position: 'sticky', top: 0, background: '#f5f5f5' }}>
+                                            <tr>
+                                                <th style={{ padding: '8px' }}>Module</th>
+                                                <th style={{ padding: '8px', textAlign: 'center' }}>View</th>
+                                                <th style={{ padding: '8px', textAlign: 'center' }}>Create</th>
+                                                <th style={{ padding: '8px', textAlign: 'center' }}>Update</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {MODULES.map(mod => {
+                                                const perm = userForm.modulePermissions[mod.id] || { view: true, create: true, update: true };
+                                                const handlePermChange = (field, val) => {
+                                                    setUserForm({
+                                                        ...userForm,
+                                                        modulePermissions: {
+                                                            ...userForm.modulePermissions,
+                                                            [mod.id]: { ...perm, [field]: val }
+                                                        }
+                                                    });
+                                                };
+                                                return (
+                                                    <tr key={mod.id}>
+                                                        <td style={{ padding: '8px' }}>{mod.label}</td>
+                                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                                            <input type="checkbox" checked={perm.view} onChange={(e) => handlePermChange('view', e.target.checked)} />
+                                                        </td>
+                                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                                            <input type="checkbox" checked={perm.create} onChange={(e) => handlePermChange('create', e.target.checked)} />
+                                                        </td>
+                                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                                            <input type="checkbox" checked={perm.update} onChange={(e) => handlePermChange('update', e.target.checked)} />
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                             <div className="form-actions">

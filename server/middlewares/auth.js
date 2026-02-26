@@ -44,6 +44,7 @@ const verifyToken = async (req, res, next) => {
             canView: decoded.canView,
             canCreate: decoded.canCreate,
             canUpdate: decoded.canUpdate,
+            modulePermissions: decoded.modulePermissions || {},
         };
 
         next();

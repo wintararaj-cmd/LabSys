@@ -9,7 +9,7 @@ const getUsers = async (req, res) => {
         const tenantId = req.tenantId;
         const result = await query(
             `SELECT u.id, u.name, u.email, u.role, u.is_active, u.branch_id,
-                    u.can_view, u.can_create, u.can_update,
+                    u.can_view, u.can_create, u.can_update, u.module_permissions,
                     b.name as branch_name
              FROM users u
              LEFT JOIN branches b ON u.branch_id = b.id
@@ -29,7 +29,7 @@ const getUsers = async (req, res) => {
  */
 const createUser = async (req, res) => {
     try {
-        const { name, email, password, role, branchId, canView = true, canCreate = true, canUpdate = true } = req.body;
+        const { name, email, password, role, branchId, canView = true, canCreate = true, canUpdate = true, modulePermissions = {} } = req.body;
         const tenantId = req.tenantId;
 
         if (!name || !email || !password || !role) {
@@ -55,10 +55,10 @@ const createUser = async (req, res) => {
         const passwordHash = await bcrypt.hash(password, 10);
 
         const result = await query(
-            `INSERT INTO users (tenant_id, branch_id, name, email, password_hash, role, is_active, can_view, can_create, can_update)
-             VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8, $9)
-             RETURNING id, name, email, role, branch_id, can_view as "canView", can_create as "canCreate", can_update as "canUpdate"`,
-            [tenantId, branchId || null, name, email, passwordHash, role, canView, canCreate, canUpdate]
+            `INSERT INTO users (tenant_id, branch_id, name, email, password_hash, role, is_active, can_view, can_create, can_update, module_permissions)
+             VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8, $9, $10)
+             RETURNING id, name, email, role, branch_id, can_view as "canView", can_create as "canCreate", can_update as "canUpdate", module_permissions as "modulePermissions"`,
+            [tenantId, branchId || null, name, email, passwordHash, role, canView, canCreate, canUpdate, modulePermissions]
         );
 
         res.status(201).json({
@@ -78,7 +78,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, role, branchId, canView, canCreate, canUpdate } = req.body;
+        const { name, role, branchId, canView, canCreate, canUpdate, modulePermissions } = req.body;
         const tenantId = req.tenantId;
 
         if (!name || !role) {
@@ -93,10 +93,11 @@ const updateUser = async (req, res) => {
         const result = await query(
             `UPDATE users 
              SET name = $1, role = $2, branch_id = $3,
-                 can_view = COALESCE($6, can_view), can_create = COALESCE($7, can_create), can_update = COALESCE($8, can_update)
+                 can_view = COALESCE($6, can_view), can_create = COALESCE($7, can_create), can_update = COALESCE($8, can_update),
+                 module_permissions = COALESCE($9, module_permissions)
              WHERE id = $4 AND tenant_id = $5
-             RETURNING id, name, email, role, branch_id, is_active, can_view as "canView", can_create as "canCreate", can_update as "canUpdate"`,
-            [name, role, branchId || null, id, tenantId, canView, canCreate, canUpdate]
+             RETURNING id, name, email, role, branch_id, is_active, can_view as "canView", can_create as "canCreate", can_update as "canUpdate", module_permissions as "modulePermissions"`,
+            [name, role, branchId || null, id, tenantId, canView, canCreate, canUpdate, modulePermissions]
         );
 
         if (result.rows.length === 0) {

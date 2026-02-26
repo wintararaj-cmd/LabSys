@@ -228,6 +228,7 @@ async function migrate() {
                     ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view BOOLEAN DEFAULT TRUE;
                     ALTER TABLE users ADD COLUMN IF NOT EXISTS can_create BOOLEAN DEFAULT TRUE;
                     ALTER TABLE users ADD COLUMN IF NOT EXISTS can_update BOOLEAN DEFAULT TRUE;
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS module_permissions JSONB DEFAULT '{}'::jsonb;
 
                 `);
                 console.log('Incremental updates applied.');
