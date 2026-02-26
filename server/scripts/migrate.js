@@ -224,6 +224,11 @@ async function migrate() {
                     -- Session invalidation: close all active sessions for a user
                     ALTER TABLE users ADD COLUMN IF NOT EXISTS sessions_invalidated_at TIMESTAMP;
 
+                    -- Add specific permissions for users
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS can_view BOOLEAN DEFAULT TRUE;
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS can_create BOOLEAN DEFAULT TRUE;
+                    ALTER TABLE users ADD COLUMN IF NOT EXISTS can_update BOOLEAN DEFAULT TRUE;
+
                 `);
                 console.log('Incremental updates applied.');
             } catch (err) {
