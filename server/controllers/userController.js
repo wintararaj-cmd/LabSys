@@ -36,7 +36,7 @@ const createUser = async (req, res) => {
         }
 
         // Validate role
-        const validRoles = ['ADMIN', 'DOCTOR', 'TECHNICIAN', 'RECEPTIONIST'];
+        const validRoles = ['ADMIN', 'DOCTOR', 'TECHNICIAN', 'RECEPTIONIST', 'RADIOLOGIST', 'ACCOUNTANT'];
         if (!validRoles.includes(role)) {
             return res.status(400).json({ error: 'Invalid role' });
         }
@@ -71,7 +71,81 @@ const createUser = async (req, res) => {
     }
 };
 
+/**
+ * Update user details
+ */
+const updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, role, branchId } = req.body;
+        const tenantId = req.tenantId;
+
+        if (!name || !role) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const validRoles = ['ADMIN', 'DOCTOR', 'TECHNICIAN', 'RECEPTIONIST', 'RADIOLOGIST', 'ACCOUNTANT'];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({ error: 'Invalid role' });
+        }
+
+        const result = await query(
+            `UPDATE users 
+             SET name = $1, role = $2, branch_id = $3
+             WHERE id = $4 AND tenant_id = $5
+             RETURNING id, name, email, role, branch_id, is_active`,
+            [name, role, branchId || null, id, tenantId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({
+            message: 'User updated successfully',
+            user: result.rows[0],
+        });
+
+    } catch (error) {
+        console.error('Update user error:', error);
+        res.status(500).json({ error: 'Failed to update user' });
+    }
+};
+
+/**
+ * Toggle user status
+ */
+const toggleUserStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.tenantId;
+
+        const result = await query(
+            `UPDATE users 
+             SET is_active = NOT is_active
+             WHERE id = $1 AND tenant_id = $2
+             RETURNING id, is_active`,
+            [id, tenantId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({
+            message: 'User status updated',
+            user: result.rows[0],
+        });
+
+    } catch (error) {
+        console.error('Toggle status error:', error);
+        res.status(500).json({ error: 'Failed to update user status' });
+    }
+};
+
 module.exports = {
     getUsers,
     createUser,
+    updateUser,
+    toggleUserStatus,
 };

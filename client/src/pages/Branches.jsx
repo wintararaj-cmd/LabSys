@@ -12,6 +12,7 @@ const Branches = () => {
     // Forms
     const [showBranchForm, setShowBranchForm] = useState(false);
     const [showUserForm, setShowUserForm] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
 
     const [branchForm, setBranchForm] = useState({ name: '', address: '', phone: '' });
     const [userForm, setUserForm] = useState({
@@ -27,6 +28,7 @@ const Branches = () => {
             if (event.key === 'Escape') {
                 setShowBranchForm(false);
                 setShowUserForm(false);
+                setEditingUser(null);
             }
         };
         window.addEventListener('keydown', handleEsc);
@@ -63,16 +65,44 @@ const Branches = () => {
         }
     };
 
-    const handleCreateUser = async (e) => {
+    const handleSaveUser = async (e) => {
         e.preventDefault();
         try {
-            await userAPI.create(userForm);
-            alert('User created successfully!');
+            if (editingUser) {
+                await userAPI.update(editingUser.id, userForm);
+                alert('User updated successfully!');
+            } else {
+                await userAPI.create(userForm);
+                alert('User created successfully!');
+            }
             setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '' });
             setShowUserForm(false);
+            setEditingUser(null);
             fetchData();
         } catch (error) {
-            alert(error.response?.data?.error || 'Failed to create user');
+            alert(error.response?.data?.error || 'Failed to save user');
+        }
+    };
+
+    const handleEditUser = (user) => {
+        setEditingUser(user);
+        setUserForm({
+            name: user.name,
+            email: user.email,
+            password: '', 
+            role: user.role,
+            branchId: user.branch_id || ''
+        });
+        setShowUserForm(true);
+    };
+
+    const handleToggleStatus = async (id) => {
+        if (!window.confirm("Are you sure you want to toggle this user's status?")) return;
+        try {
+            await userAPI.toggleStatus(id);
+            fetchData();
+        } catch (error) {
+            alert(error.response?.data?.error || 'Failed to update user status');
         }
     };
 
@@ -126,7 +156,11 @@ const Branches = () => {
                 {activeTab === 'USERS' && (
                     <>
                         <div className="actions-bar">
-                            <button className="btn-primary" onClick={() => setShowUserForm(true)}>
+                            <button className="btn-primary" onClick={() => {
+                                setEditingUser(null);
+                                setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '' });
+                                setShowUserForm(true);
+                            }}>
                                 ➕ New Staff Member
                             </button>
                         </div>
@@ -139,6 +173,7 @@ const Branches = () => {
                                     <th>Branch</th>
                                     <th>Email</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -152,6 +187,14 @@ const Branches = () => {
                                             <span className={`badge ${user.is_active ? 'badge-success' : 'badge-error'}`}>
                                                 {user.is_active ? 'Active' : 'Inactive'}
                                             </span>
+                                        </td>
+                                        <td>
+                                            <div className="action-buttons">
+                                                <button className="btn-icon" onClick={() => handleEditUser(user)} title="Edit">✏️</button>
+                                                <button className="btn-icon" onClick={() => handleToggleStatus(user.id)} title="Toggle Status">
+                                                    {user.is_active ? '🚫' : '✅'}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -192,20 +235,22 @@ const Branches = () => {
             {showUserForm && (
                 <div className="modal-overlay">
                     <div className="modal-content">
-                        <h2>Add New User</h2>
-                        <form onSubmit={handleCreateUser}>
+                        <h2>{editingUser ? 'Edit User' : 'Add New User'}</h2>
+                        <form onSubmit={handleSaveUser}>
                             <div className="form-group">
                                 <label>Full Name *</label>
                                 <input required type="text" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} />
                             </div>
                             <div className="form-group">
                                 <label>Email *</label>
-                                <input required type="email" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} />
+                                <input required disabled={!!editingUser} type="email" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} />
                             </div>
-                            <div className="form-group">
-                                <label>Password *</label>
-                                <input required type="password" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} />
-                            </div>
+                            {!editingUser && (
+                                <div className="form-group">
+                                    <label>Password *</label>
+                                    <input required type="password" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} />
+                                </div>
+                            )}
                             <div className="form-group">
                                 <label>Role *</label>
                                 <select value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })}>
@@ -227,8 +272,8 @@ const Branches = () => {
                                 </select>
                             </div>
                             <div className="form-actions">
-                                <button type="submit" className="btn-save">Create User</button>
-                                <button type="button" className="btn-cancel" onClick={() => setShowUserForm(false)}>Cancel</button>
+                                <button type="submit" className="btn-save">{editingUser ? 'Save Changes' : 'Create User'}</button>
+                                <button type="button" className="btn-cancel" onClick={() => { setShowUserForm(false); setEditingUser(null); }}>Cancel</button>
                             </div>
                         </form>
                     </div>

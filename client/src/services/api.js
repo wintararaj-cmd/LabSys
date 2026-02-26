@@ -126,6 +126,8 @@ export const branchAPI = {
 export const userAPI = {
     getAll: () => api.get('/users'),
     create: (data) => api.post('/users', data),
+    update: (id, data) => api.put(`/users/${id}`, data),
+    toggleStatus: (id) => api.put(`/users/${id}/status`),
 };
 
 // Backup API
