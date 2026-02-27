@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import './Doctors.css'; // reuse same CSS
 
 const fmt = (v) => parseFloat(v || 0).toFixed(2);
 
 const Introducers = () => {
     const toast = useToast();
+    const confirm = useConfirm();
     const [introducers, setIntroducers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -95,7 +97,13 @@ const Introducers = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Delete this introducer? This will not affect existing invoices.')) return;
+        const ok = await confirm({
+            title: 'Delete Introducer',
+            message: 'This will delete the introducer. Existing invoices and commissions will not be affected.',
+            confirmText: 'Delete',
+            variant: 'danger'
+        });
+        if (!ok) return;
         try {
             await api.delete(`/doctors/${id}`);
             fetchIntroducers();

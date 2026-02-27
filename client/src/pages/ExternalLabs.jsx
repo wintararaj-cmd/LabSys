@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './ExternalLabs.css';
 import api from '../services/api';
+import { useConfirm } from '../context/ConfirmContext';
 
 const ExternalLabs = () => {
     const [labs, setLabs] = useState([]);
     const [showModal, setShowModal] = useState(false);
+    const confirm = useConfirm();
     const [formData, setFormData] = useState({
         name: '',
         contact_person: '',
@@ -73,13 +75,18 @@ const ExternalLabs = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this lab?')) {
-            try {
-                await api.delete(`/external-labs/${id}`);
-                fetchLabs();
-            } catch (error) {
-                console.error('Error deleting lab:', error);
-            }
+        const ok = await confirm({
+            title: 'Delete External Lab',
+            message: 'Are you sure you want to delete this lab? This action cannot be undone.',
+            confirmText: 'Delete',
+            variant: 'danger'
+        });
+        if (!ok) return;
+        try {
+            await api.delete(`/external-labs/${id}`);
+            fetchLabs();
+        } catch (error) {
+            console.error('Error deleting lab:', error);
         }
     };
 

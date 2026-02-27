@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { purchaseAPI, inventoryAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import './PurchaseInvoices.css';
 
 const PurchaseInvoices = () => {
     const toast = useToast();
+    const confirm = useConfirm();
     const [purchases, setPurchases] = useState([]);
     const [inventory, setInventory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -131,7 +133,13 @@ const PurchaseInvoices = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this purchase? Stock will be reversed.')) return;
+        const ok = await confirm({
+            title: 'Delete Purchase Invoice',
+            message: 'This will permanently delete the purchase and reverse the stock quantities. This cannot be undone.',
+            confirmText: 'Delete & Reverse Stock',
+            variant: 'danger'
+        });
+        if (!ok) return;
         try {
             await purchaseAPI.delete(id);
             toast.success('Purchase deleted and stock reversed');

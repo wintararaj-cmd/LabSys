@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { backupAPI, authAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import api from '../services/api';
 import './Settings.css';
 
 const Settings = () => {
     const { user, logout } = useAuth();
     const toast = useToast();
+    const confirm = useConfirm();
     const [activeTab, setActiveTab] = useState('lab');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
@@ -184,7 +186,14 @@ const Settings = () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!window.confirm('WARNING: Importing data will OVERWRITE all existing data for this laboratory. Are you sure?')) {
+        const ok = await confirm({
+            title: '⚠️ Overwrite All Data?',
+            message: 'Importing this backup will permanently overwrite ALL existing patient records, invoices, reports and settings for this laboratory. This cannot be undone.',
+            confirmText: 'Yes, Overwrite Everything',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+        if (!ok) {
             e.target.value = '';
             return;
         }
@@ -234,7 +243,13 @@ const Settings = () => {
     };
 
     const handleCloseAllSessions = async () => {
-        if (!window.confirm('This will log you out from all devices including this one. Continue?')) return;
+        const ok = await confirm({
+            title: 'Close All Sessions',
+            message: 'This will immediately log you out from all devices, including this one. You will need to login again.',
+            confirmText: '🔴 Close All Sessions',
+            variant: 'danger'
+        });
+        if (!ok) return;
         try {
             setSessionsLoading(true);
             await authAPI.closeAllSessions();

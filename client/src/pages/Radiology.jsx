@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import './Radiology.css';
 
 const Radiology = () => {
     const toast = useToast();
+    const confirm = useConfirm();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
@@ -88,14 +90,17 @@ const Radiology = () => {
         }
     };
 
-    const handleLoadTemplate = (templateId) => {
+    const handleLoadTemplate = async (templateId) => {
         const template = templates.find(t => t.id === parseInt(templateId));
         if (template) {
-            // Confirm if they want to overwrite existing content
             if (findings || impression) {
-                if (!window.confirm('This will overwrite current editor content with template defaults. Continue?')) {
-                    return;
-                }
+                const ok = await confirm({
+                    title: 'Load Template',
+                    message: 'This will overwrite your current findings and impression with the template defaults. Continue?',
+                    confirmText: 'Load Template',
+                    variant: 'warning'
+                });
+                if (!ok) return;
             }
             setFindings(template.default_findings || '');
             setImpression(template.default_impression || '');

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import './Doctors.css';
 
 const Doctors = () => {
     const toast = useToast();
+    const confirm = useConfirm();
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -94,9 +96,13 @@ const Doctors = () => {
     };
 
     const handleDelete = async (doctorId) => {
-        if (!window.confirm('Are you sure you want to delete this doctor?')) {
-            return;
-        }
+        const ok = await confirm({
+            title: 'Delete Doctor',
+            message: 'Are you sure you want to delete this doctor? Existing commission records will be preserved.',
+            confirmText: 'Delete',
+            variant: 'danger'
+        });
+        if (!ok) return;
 
         try {
             await api.delete(`/doctors/${doctorId}`);

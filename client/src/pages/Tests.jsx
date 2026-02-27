@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { testAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import './Tests.css';
 
 function Tests() {
     const toast = useToast();
+    const confirm = useConfirm();
     const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -86,10 +88,13 @@ function Tests() {
     };
 
     const handleDelete = async (testId) => {
-        if (!window.confirm('Are you sure you want to delete this test?')) {
-            return;
-        }
-
+        const ok = await confirm({
+            title: 'Delete Test',
+            message: 'Are you sure you want to delete this test? This action cannot be undone.',
+            confirmText: 'Delete',
+            variant: 'danger'
+        });
+        if (!ok) return;
         try {
             await testAPI.delete(testId);
             toast.success('Test deleted successfully!');

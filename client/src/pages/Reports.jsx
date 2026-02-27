@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import './Reports.css';
 import BarcodeLabel from '../components/BarcodeLabel';
 import ReactDOM from 'react-dom';
 
 const Reports = () => {
     const toast = useToast();
+    const confirm = useConfirm();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -137,9 +139,13 @@ const Reports = () => {
     const handleVerifyReport = async () => {
         if (!selectedReport) return;
 
-        if (!window.confirm('Are you sure you want to verify this report? This action cannot be undone.')) {
-            return;
-        }
+        const ok = await confirm({
+            title: 'Verify Report',
+            message: 'Once verified, this report will be locked and cannot be edited. Are you sure?',
+            confirmText: '✅ Verify & Lock',
+            variant: 'warning'
+        });
+        if (!ok) return;
 
         try {
             await api.put(

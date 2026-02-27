@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { inventoryAPI, branchAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
+import { exportToCSV } from '../utils/exportCSV';
 import './Inventory.css';
 
 const Inventory = () => {
     const toast = useToast();
+    const confirm = useConfirm();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -130,10 +133,13 @@ const Inventory = () => {
     };
 
     const handleDelete = async (itemId) => {
-        if (!window.confirm('Are you sure you want to delete this item?')) {
-            return;
-        }
-
+        const ok = await confirm({
+            title: 'Delete Inventory Item',
+            message: 'This will permanently remove the item from inventory. This action cannot be undone.',
+            confirmText: 'Delete Item',
+            variant: 'danger'
+        });
+        if (!ok) return;
         try {
             await inventoryAPI.delete(itemId);
             toast.success('Item deleted successfully!');

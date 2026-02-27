@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { branchAPI, userAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import './Branches.css';
 
 const MODULES = [
@@ -21,6 +22,7 @@ const MODULES = [
 
 const Branches = () => {
     const toast = useToast();
+    const confirm = useConfirm();
     const [branches, setBranches] = useState([]);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -119,7 +121,13 @@ const Branches = () => {
     };
 
     const handleToggleStatus = async (id) => {
-        if (!window.confirm("Are you sure you want to toggle this user's status?")) return;
+        const ok = await confirm({
+            title: 'Toggle User Status',
+            message: "This will activate or deactivate the user's account. They won't be able to login while inactive.",
+            confirmText: 'Toggle Status',
+            variant: 'warning'
+        });
+        if (!ok) return;
         try {
             await userAPI.toggleStatus(id);
             fetchData();
