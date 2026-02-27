@@ -104,6 +104,16 @@ app.use((err, req, res, next) => {
 const machineIntegration = require('./services/machineIntegrationService');
 machineIntegration.start();
 
-app.listen(PORT, () => {
+const { query } = require('./config/db');
+
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+
+  // Auto-run missing migrations for remote servers
+  try {
+    await query('ALTER TABLE tests ADD COLUMN IF NOT EXISTS gst_percentage DECIMAL(5,2) DEFAULT 0.00');
+    console.log('✅ Auto-migration: gst_percentage column check passed.');
+  } catch (err) {
+    console.error('❌ Auto-migration failed:', err.message);
+  }
 });

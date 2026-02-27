@@ -10,11 +10,11 @@ router.use(tenantGuard);
 // Get all reports (with optional filtering)
 router.get('/', reportController.getAllReports);
 
-// Get single report by ID
-router.get('/:id', reportController.getReportById);
-
 // Get pending reports
 router.get('/pending', reportController.getPendingReports);
+
+// Get single report by ID
+router.get('/:id', reportController.getReportById);
 
 // Update test result (single)
 router.put('/:id/result', checkRole(['ADMIN', 'TECHNICIAN', 'RADIOLOGIST']), reportController.updateTestResult);
