@@ -509,44 +509,189 @@ const FinancialReports = () => {
 
 
     /* ── Sale Report ─────────────────────────────────────────── */
-    const renderSaleReport = () => (
-        <div className="report-table-wrapper">
-            <table className="report-table">
-                <thead><tr>
-                    <th>Date</th><th>Invoice #</th><th>Patient</th><th>Doctor</th>
-                    <th>Total</th><th>Disc</th><th>Tax</th><th>Net</th><th>Paid</th><th>Bal</th>
-                </tr></thead>
-                <tbody>
-                    {data.map((row, i) => (
-                        <tr key={i}>
-                            <td>{new Date(row.created_at).toLocaleDateString()}</td>
-                            <td className="highlight">{row.invoice_number}</td>
-                            <td>{row.patient_name}</td>
-                            <td>{row.doctor_name || 'Walking'}</td>
-                            <td>{fc(row.total_amount)}</td>
-                            <td>{fc(row.discount_amount)}</td>
-                            <td>{fc(row.tax_amount)}</td>
-                            <td className="bold">{fc(row.net_amount)}</td>
-                            <td className="text-success">{fc(row.paid_amount)}</td>
-                            <td className={row.balance_amount > 0 ? 'text-danger' : ''}>{fc(row.balance_amount)}</td>
-                        </tr>
-                    ))}
-                    {data.length === 0 && <tr><td colSpan="10" className="no-data">No data found for the selected period</td></tr>}
-                </tbody>
-                {data.length > 0 && (
-                    <tfoot><tr>
-                        <td colSpan="4">Grand Total</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.total_amount), 0))}</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.discount_amount), 0))}</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.tax_amount), 0))}</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.net_amount), 0))}</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.paid_amount), 0))}</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.balance_amount), 0))}</td>
-                    </tr></tfoot>
+    const renderSaleReport = () => {
+        const totalRevenue = data.reduce((s, r) => s + parseFloat(r.total_amount || 0), 0);
+        const totalDiscount = data.reduce((s, r) => s + parseFloat(r.discount_amount || 0), 0);
+        const totalTax = data.reduce((s, r) => s + parseFloat(r.tax_amount || 0), 0);
+        const totalNet = data.reduce((s, r) => s + parseFloat(r.net_amount || 0), 0);
+        const totalPaid = data.reduce((s, r) => s + parseFloat(r.paid_amount || 0), 0);
+        const totalBalance = data.reduce((s, r) => s + parseFloat(r.balance_amount || 0), 0);
+        const invoiceCount = data.length;
+
+        const STATUS_CFG = {
+            PAID: { label: 'Paid', cls: 'sr-badge-paid' },
+            PARTIAL: { label: 'Partial', cls: 'sr-badge-partial' },
+            PENDING: { label: 'Due', cls: 'sr-badge-pending' },
+            UNPAID: { label: 'Unpaid', cls: 'sr-badge-pending' },
+        };
+        const MODE_CFG = {
+            CASH: { label: 'Cash', cls: 'sr-mode-cash' },
+            CARD: { label: 'Card', cls: 'sr-mode-card' },
+            UPI: { label: 'UPI', cls: 'sr-mode-upi' },
+            ONLINE: { label: 'Online', cls: 'sr-mode-online' },
+            BANK: { label: 'Bank', cls: 'sr-mode-bank' },
+            CHEQUE: { label: 'Cheque', cls: 'sr-mode-cheque' },
+        };
+
+        return (
+            <div className="sr-root">
+                {/* KPI Summary Cards */}
+                <div className="sr-kpi-grid">
+                    <div className="sr-kpi sr-kpi-invoices">
+                        <div className="sr-kpi-icon">🧾</div>
+                        <div className="sr-kpi-body">
+                            <div className="sr-kpi-label">Total Invoices</div>
+                            <div className="sr-kpi-value">{invoiceCount}</div>
+                        </div>
+                    </div>
+                    <div className="sr-kpi sr-kpi-revenue">
+                        <div className="sr-kpi-icon">💰</div>
+                        <div className="sr-kpi-body">
+                            <div className="sr-kpi-label">Gross Revenue</div>
+                            <div className="sr-kpi-value">{fc(totalRevenue)}</div>
+                        </div>
+                    </div>
+                    <div className="sr-kpi sr-kpi-discount">
+                        <div className="sr-kpi-icon">🏷️</div>
+                        <div className="sr-kpi-body">
+                            <div className="sr-kpi-label">Total Discount</div>
+                            <div className="sr-kpi-value">{fc(totalDiscount)}</div>
+                        </div>
+                    </div>
+                    <div className="sr-kpi sr-kpi-tax">
+                        <div className="sr-kpi-icon">📋</div>
+                        <div className="sr-kpi-body">
+                            <div className="sr-kpi-label">Total GST / Tax</div>
+                            <div className="sr-kpi-value">{fc(totalTax)}</div>
+                        </div>
+                    </div>
+                    <div className="sr-kpi sr-kpi-net">
+                        <div className="sr-kpi-icon">📊</div>
+                        <div className="sr-kpi-body">
+                            <div className="sr-kpi-label">Net Amount</div>
+                            <div className="sr-kpi-value">{fc(totalNet)}</div>
+                        </div>
+                    </div>
+                    <div className="sr-kpi sr-kpi-collected">
+                        <div className="sr-kpi-icon">✅</div>
+                        <div className="sr-kpi-body">
+                            <div className="sr-kpi-label">Collected</div>
+                            <div className="sr-kpi-value">{fc(totalPaid)}</div>
+                        </div>
+                    </div>
+                    <div className="sr-kpi sr-kpi-dues">
+                        <div className="sr-kpi-icon">⏳</div>
+                        <div className="sr-kpi-body">
+                            <div className="sr-kpi-label">Outstanding Dues</div>
+                            <div className={`sr-kpi-value ${totalBalance > 0 ? 'sr-kpi-danger' : ''}`}>{fc(totalBalance)}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Collection efficiency bar */}
+                {totalNet > 0 && (
+                    <div className="sr-efficiency-bar-wrap">
+                        <div className="sr-efficiency-label">
+                            <span>Collection Efficiency</span>
+                            <strong>{((totalPaid / totalNet) * 100).toFixed(1)}%</strong>
+                        </div>
+                        <div className="sr-efficiency-track">
+                            <div
+                                className="sr-efficiency-fill"
+                                style={{ width: `${Math.min((totalPaid / totalNet) * 100, 100)}%` }}
+                            />
+                        </div>
+                    </div>
                 )}
-            </table>
-        </div>
-    );
+
+                {/* Table */}
+                <div className="sr-table-wrap">
+                    <table className="sr-table">
+                        <thead>
+                            <tr className="sr-thead-group">
+                                <th colSpan="4" className="sr-tg-left">Invoice Details</th>
+                                <th colSpan="4" className="sr-tg-amounts">Amounts (₹)</th>
+                                <th colSpan="2" className="sr-tg-payment">Payment</th>
+                            </tr>
+                            <tr>
+                                <th>Date</th>
+                                <th>Invoice #</th>
+                                <th>Patient</th>
+                                <th>Doctor</th>
+                                <th className="sr-num">Total</th>
+                                <th className="sr-num">Disc</th>
+                                <th className="sr-num">Tax</th>
+                                <th className="sr-num">Net</th>
+                                <th className="sr-num">Paid</th>
+                                <th className="sr-num">Balance</th>
+                                <th>Mode</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.length === 0 && (
+                                <tr>
+                                    <td colSpan="12" className="sr-no-data">
+                                        <div className="sr-empty-state">
+                                            <div className="sr-empty-icon">📭</div>
+                                            <div className="sr-empty-title">No transactions found</div>
+                                            <div className="sr-empty-sub">Try adjusting the date range above.</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                            {data.map((row, i) => {
+                                const bal = parseFloat(row.balance_amount || 0);
+                                const status = (row.payment_status || '').toUpperCase();
+                                const mode = (row.payment_mode || '').toUpperCase();
+                                const sBadge = STATUS_CFG[status] || { label: status, cls: 'sr-badge-default' };
+                                const mBadge = MODE_CFG[mode] || { label: mode, cls: 'sr-mode-default' };
+                                return (
+                                    <tr key={i} className="sr-row">
+                                        <td className="sr-date">
+                                            {new Date(row.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                        </td>
+                                        <td>
+                                            <span className="sr-inv-num">{row.invoice_number}</span>
+                                        </td>
+                                        <td className="sr-patient">{row.patient_name}</td>
+                                        <td className="sr-doctor">{row.doctor_name || <span className="sr-walk-in">Walk-in</span>}</td>
+                                        <td className="sr-num sr-total">{fc(row.total_amount)}</td>
+                                        <td className="sr-num sr-disc">{parseFloat(row.discount_amount) > 0 ? fc(row.discount_amount) : <span className="sr-zero">—</span>}</td>
+                                        <td className="sr-num sr-tax">{parseFloat(row.tax_amount) > 0 ? fc(row.tax_amount) : <span className="sr-zero">—</span>}</td>
+                                        <td className="sr-num sr-net">{fc(row.net_amount)}</td>
+                                        <td className="sr-num sr-paid">{fc(row.paid_amount)}</td>
+                                        <td className={`sr-num ${bal > 0 ? 'sr-bal-due' : 'sr-bal-clear'}`}>
+                                            {bal > 0 ? fc(bal) : <span className="sr-zero">✔</span>}
+                                        </td>
+                                        <td><span className={`sr-mode-badge ${mBadge.cls}`}>{mBadge.label || mode || '—'}</span></td>
+                                        <td><span className={`sr-status-badge ${sBadge.cls}`}>{sBadge.label}</span></td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                        {data.length > 0 && (
+                            <tfoot>
+                                <tr className="sr-grand-total">
+                                    <td colSpan="4">
+                                        <span className="sr-gt-label">Grand Total</span>
+                                        <span className="sr-gt-count">{invoiceCount} invoices</span>
+                                    </td>
+                                    <td className="sr-num sr-total">{fc(totalRevenue)}</td>
+                                    <td className="sr-num sr-disc">{fc(totalDiscount)}</td>
+                                    <td className="sr-num sr-tax">{fc(totalTax)}</td>
+                                    <td className="sr-num sr-net">{fc(totalNet)}</td>
+                                    <td className="sr-num sr-paid">{fc(totalPaid)}</td>
+                                    <td className={`sr-num ${totalBalance > 0 ? 'sr-bal-due' : 'sr-bal-clear'}`}>{fc(totalBalance)}</td>
+                                    <td colSpan="2"></td>
+                                </tr>
+                            </tfoot>
+                        )}
+                    </table>
+                </div>
+            </div>
+        );
+    };
 
     /* ── Main render ─────────────────────────────────────────── */
     return (
