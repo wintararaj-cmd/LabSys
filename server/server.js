@@ -86,13 +86,31 @@ app.use('/uploads', express.static('uploads'));
 // Serve Frontend in Production
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
-  // Serve static files from the React app build directory
-  app.use(express.static(path.join(__dirname, 'public')));
+  const fs = require('fs');
 
-  // The "catchall" handler: for any request that doesn't
-  // match one above, send back React's index.html file.
+  const publicDir = path.join(__dirname, 'public');
+
+  // Serve static files (JS, CSS, images, etc.) with proper MIME types
+  app.use(express.static(publicDir, {
+    // Cache assets for 1 year since they have content hashes in names
+    maxAge: '1y',
+    immutable: true,
+  }));
+
+  // IMPORTANT: Do NOT serve index.html for /assets/ requests — let them 404
+  // This prevents the "text/html is not a supported stylesheet MIME type" error
+  app.get('/assets/*', (req, res) => {
+    res.status(404).json({ error: 'Asset not found — please rebuild and redeploy the client' });
+  });
+
+  // For all other routes, serve the React SPA index.html
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    const indexPath = path.join(publicDir, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(503).send('Client build not found. Please deploy the client build.');
+    }
   });
 }
 
