@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { purchaseAPI, inventoryAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { exportToCSV } from '../utils/exportCSV';
 import './PurchaseInvoices.css';
 
 const PurchaseInvoices = () => {
@@ -180,9 +181,27 @@ const PurchaseInvoices = () => {
                     <h1>📦 Purchase Invoices</h1>
                     <p>Track reagent and consumable purchases</p>
                 </div>
-                <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                    + New Purchase Entry
-                </button>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <button
+                        className="btn-export"
+                        onClick={() => exportToCSV('purchases', purchases, [
+                            { key: 'invoice_number', label: 'Invoice #' },
+                            { key: 'supplier_name', label: 'Supplier' },
+                            { key: 'purchase_date', label: 'Date' },
+                            { key: 'total_amount', label: 'Total Amount' },
+                            { key: 'payment_status', label: 'Payment Status' },
+                            { key: 'payment_mode', label: 'Payment Mode' },
+                            { key: 'notes', label: 'Notes' },
+                        ])}
+                        disabled={purchases.length === 0}
+                        title="Export purchases to CSV"
+                    >
+                        📥 Export CSV
+                    </button>
+                    <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                        + New Purchase Entry
+                    </button>
+                </div>
             </div>
 
             {error && <div className="error-msg">{error}</div>}

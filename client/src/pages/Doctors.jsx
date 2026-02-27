@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { exportToCSV } from '../utils/exportCSV';
 import './Doctors.css';
 
 const Doctors = () => {
@@ -212,12 +213,31 @@ const Doctors = () => {
                     <h1>👨‍⚕️ Doctors Management</h1>
                     <p>Manage referring doctors and commission tracking</p>
                 </div>
-                <button
-                    className="btn-primary"
-                    onClick={() => setShowForm(!showForm)}
-                >
-                    {showForm ? '✕ Cancel' : '➕ Add Doctor'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <button
+                        className="btn-export"
+                        onClick={() => exportToCSV('doctors', doctors, [
+                            { key: 'name', label: 'Doctor Name' },
+                            { key: 'specialization', label: 'Specialization' },
+                            { key: 'qualification', label: 'Qualification' },
+                            { key: 'registration_number', label: 'Reg. Number' },
+                            { key: 'phone', label: 'Phone' },
+                            { key: 'email', label: 'Email' },
+                            { key: 'commission_type', label: 'Commission Type' },
+                            { key: 'commission_value', label: 'Commission Value' },
+                        ])}
+                        disabled={doctors.length === 0}
+                        title="Export doctors list to CSV"
+                    >
+                        📥 Export CSV
+                    </button>
+                    <button
+                        className="btn-primary"
+                        onClick={() => setShowForm(!showForm)}
+                    >
+                        {showForm ? '✕ Cancel' : '➕ Add Doctor'}
+                    </button>
+                </div>
             </div>
 
             {error && <div className="error-message">{error}</div>}

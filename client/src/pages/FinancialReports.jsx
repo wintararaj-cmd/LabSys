@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { financeAPI } from '../services/api';
+import { exportToCSV } from '../utils/exportCSV';
 import './FinancialReports.css';
 
 const FinancialReports = () => {
@@ -46,6 +47,46 @@ const FinancialReports = () => {
             style: 'currency',
             currency: 'INR',
         }).format(amount);
+    };
+
+    const handleExport = () => {
+        if (data.length === 0) return;
+        const tabLabels = { SALE: 'sale-report', GST: 'gst-report', CASH: 'cash-book' };
+        const filename = `${tabLabels[activeTab]}_${startDate}_${endDate}`;
+
+        const columnMap = {
+            SALE: [
+                { key: 'created_at', label: 'Date' },
+                { key: 'invoice_number', label: 'Invoice #' },
+                { key: 'patient_name', label: 'Patient' },
+                { key: 'doctor_name', label: 'Doctor' },
+                { key: 'total_amount', label: 'Total' },
+                { key: 'discount_amount', label: 'Discount' },
+                { key: 'tax_amount', label: 'Tax' },
+                { key: 'net_amount', label: 'Net Amount' },
+                { key: 'paid_amount', label: 'Paid' },
+                { key: 'balance_amount', label: 'Balance' },
+                { key: 'payment_status', label: 'Status' },
+                { key: 'payment_mode', label: 'Mode' },
+            ],
+            GST: [
+                { key: 'date', label: 'Date' },
+                { key: 'invoice_number', label: 'Invoice #' },
+                { key: 'patient_name', label: 'Patient' },
+                { key: 'taxable_amount', label: 'Taxable Amount' },
+                { key: 'tax_amount', label: 'GST Amount' },
+                { key: 'total_amount', label: 'Total Amount' },
+            ],
+            CASH: [
+                { key: 'created_at', label: 'Date/Time' },
+                { key: 'invoice_number', label: 'Invoice #' },
+                { key: 'patient_name', label: 'Patient Name' },
+                { key: 'payment_mode', label: 'Mode' },
+                { key: 'amount', label: 'Amount (Inward)' },
+            ],
+        };
+
+        exportToCSV(filename, data, columnMap[activeTab]);
     };
 
     const renderGSTReport = () => (
@@ -191,6 +232,14 @@ const FinancialReports = () => {
                     <p>Analyze sales, taxation, and collections</p>
                 </div>
                 <div className="header-actions">
+                    <button
+                        className="btn-export"
+                        onClick={handleExport}
+                        disabled={data.length === 0 || loading}
+                        title={`Export ${activeTab === 'SALE' ? 'Sale Report' : activeTab === 'GST' ? 'GST Report' : 'Cash Book'} to CSV`}
+                    >
+                        📥 Export CSV
+                    </button>
                     <button onClick={() => window.print()} className="btn btn-secondary">
                         <span>🖨️</span> Print Report
                     </button>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { testAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { exportToCSV } from '../utils/exportCSV';
 import './Tests.css';
 
 function Tests() {
@@ -141,12 +142,32 @@ function Tests() {
         <div className="tests-container">
             <div className="page-header">
                 <h1 className="page-title">Test Master</h1>
-                <button
-                    className="btn btn-primary"
-                    onClick={() => setShowForm(!showForm)}
-                >
-                    {showForm ? '✕ Cancel' : '➕ Add Test'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <button
+                        className="btn-export"
+                        onClick={() => exportToCSV('tests', tests, [
+                            { key: 'code', label: 'Code' },
+                            { key: 'name', label: 'Test Name' },
+                            { key: 'category', label: 'Category' },
+                            { key: 'department', label: 'Department' },
+                            { key: 'price', label: 'Price (₹)' },
+                            { key: 'cost', label: 'Cost (₹)' },
+                            { key: 'unit', label: 'Unit' },
+                            { key: 'gst_percentage', label: 'GST %' },
+                            { key: 'is_active', label: 'Active' },
+                        ])}
+                        disabled={tests.length === 0}
+                        title="Export test catalog to CSV"
+                    >
+                        📥 Export CSV
+                    </button>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => setShowForm(!showForm)}
+                    >
+                        {showForm ? '✕ Cancel' : '➕ Add Test'}
+                    </button>
+                </div>
             </div>
 
             {/* Add/Edit Form */}
