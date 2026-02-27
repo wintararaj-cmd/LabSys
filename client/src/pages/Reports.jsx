@@ -281,61 +281,96 @@ const Reports = () => {
     const totalPages = Math.ceil(filteredReports.length / reportsPerPage);
 
     const getStatusBadge = (status) => {
-        const badges = {
-            PENDING: { class: 'status-pending', text: 'Pending' },
-            COMPLETED: { class: 'status-completed', text: 'Completed' },
-            VERIFIED: { class: 'status-verified', text: 'Verified' }
+        const cfg = {
+            PENDING: { class: 'status-pending', icon: '⏳', text: 'Pending' },
+            COMPLETED: { class: 'status-completed', icon: '✔️', text: 'Completed' },
+            VERIFIED: { class: 'status-verified', icon: '🔒', text: 'Verified' }
         };
-        const badge = badges[status] || badges.PENDING;
-        return <span className={`status-badge ${badge.class}`}>{badge.text}</span>;
+        const b = cfg[status] || cfg.PENDING;
+        return <span className={`status-badge ${b.class}`}>{b.icon} {b.text}</span>;
     };
 
     const getOutboundBadge = (status) => {
-        const badges = {
-            'NOT_SENT': { class: 'outbound-not-sent', text: 'Internal' },
-            'SENT': { class: 'outbound-sent', text: 'Sent' },
-            'RECEIVED': { class: 'outbound-received', text: 'Lab Received' },
-            'REPORT_UPLOADED': { class: 'outbound-uploaded', text: 'Uploaded' }
+        const cfg = {
+            'NOT_SENT': { class: 'outbound-not-sent', text: '🏥 Internal' },
+            'SENT': { class: 'outbound-sent', text: '📤 Sent' },
+            'RECEIVED': { class: 'outbound-received', text: '📥 Received' },
+            'REPORT_UPLOADED': { class: 'outbound-uploaded', text: '✅ Uploaded' }
         };
-        const badge = badges[status] || badges['NOT_SENT'];
-        return <span className={`outbound-badge ${badge.class}`}>{badge.text}</span>;
+        const b = cfg[status] || cfg['NOT_SENT'];
+        return <span className={`outbound-badge ${b.class}`}>{b.text}</span>;
     };
 
+    // KPI counts
+    const kpiTotal = reports.length;
+    const kpiPending = reports.filter(r => r.status === 'PENDING').length;
+    const kpiCompleted = reports.filter(r => r.status === 'COMPLETED').length;
+    const kpiVerified = reports.filter(r => r.status === 'VERIFIED').length;
+
     if (loading) {
-        return <div className="reports-container"><div className="loading">Loading reports...</div></div>;
+        return (
+            <div className="reports-container">
+                <div className="loading">
+                    <div className="rp-spinner" />
+                    <span>Loading reports...</span>
+                </div>
+            </div>
+        );
     }
 
     return (
         <div className="reports-container">
+            {/* ── Header ── */}
             <div className="reports-header">
-                <h1>📋 Reports Management</h1>
-                <p>Manage test results and report verification</p>
+                <div className="reports-header-left">
+                    <h1>📋 Reports Management</h1>
+                    <p>Enter results, verify reports, and manage sample dispatch</p>
+                </div>
+                <button className="rp-refresh-btn" onClick={fetchReports}>🔄 Refresh</button>
+            </div>
+
+            {/* ── KPI Cards ── */}
+            <div className="rp-kpi-grid">
+                {[
+                    { cls: 'rp-kpi-total', icon: '📋', label: 'Total Reports', value: kpiTotal, filter: 'ALL' },
+                    { cls: 'rp-kpi-pending', icon: '⏳', label: 'Pending', value: kpiPending, filter: 'PENDING' },
+                    { cls: 'rp-kpi-completed', icon: '✔️', label: 'Completed', value: kpiCompleted, filter: 'COMPLETED' },
+                    { cls: 'rp-kpi-verified', icon: '🔒', label: 'Verified', value: kpiVerified, filter: 'VERIFIED' },
+                ].map(({ cls, icon, label, value, filter }) => (
+                    <div key={filter} className={`rp-kpi ${cls}`} onClick={() => setStatusFilter(filter)} title={`Filter: ${label}`}>
+                        <div className="rp-kpi-icon">{icon}</div>
+                        <div>
+                            <div className="rp-kpi-label">{label}</div>
+                            <div className="rp-kpi-value">{value}</div>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             {error && <div className="error-message">{error}</div>}
 
-            {/* Filters */}
+            {/* ── Filters ── */}
             <div className="reports-filters">
-                <div className="filter-group">
-                    <label>Status Filter:</label>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="filter-select"
-                    >
-                        <option value="ALL">All Reports</option>
-                        <option value="PENDING">Pending</option>
-                        <option value="COMPLETED">Completed</option>
-                        <option value="VERIFIED">Verified</option>
-                    </select>
+                <div className="rp-status-seg">
+                    {[
+                        { val: 'ALL', label: '📋 All', cls: 'rp-seg-all' },
+                        { val: 'PENDING', label: '⏳ Pending', cls: 'rp-seg-pending' },
+                        { val: 'COMPLETED', label: '✔️ Completed', cls: 'rp-seg-completed' },
+                        { val: 'VERIFIED', label: '🔒 Verified', cls: 'rp-seg-verified' },
+                    ].map(({ val, label, cls }) => (
+                        <button
+                            key={val}
+                            className={`rp-seg-btn ${cls} ${statusFilter === val ? 'rp-seg-active' : ''}`}
+                            onClick={() => { setStatusFilter(val); setCurrentPage(1); }}
+                        >{label}</button>
+                    ))}
                 </div>
-
                 <div className="search-box">
                     <input
                         type="text"
-                        placeholder="Search by patient name, UHID, or invoice..."
+                        placeholder="Search by patient, UHID, or invoice..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                     />
                 </div>
             </div>
@@ -359,18 +394,22 @@ const Reports = () => {
                     <tbody>
                         {currentReports.length === 0 ? (
                             <tr>
-                                <td colSpan="8" className="no-data">
-                                    No reports found
+                                <td colSpan="9" className="no-data">
+                                    <span className="rp-empty-icon">📭</span>
+                                    <div className="rp-empty-title">No reports found</div>
+                                    <div className="rp-empty-sub">Try adjusting the status filter or search term.</div>
                                 </td>
                             </tr>
                         ) : (
                             currentReports.map(report => (
                                 <tr key={report.id}>
                                     <td className="invoice-number">{report.invoice_number}</td>
-                                    <td>{report.patient_name}</td>
+                                    <td className="rp-patient-name">{report.patient_name}</td>
                                     <td className="uhid">{report.patient_uhid}</td>
-                                    <td>{report.test_count || 0} test(s)</td>
-                                    <td>{new Date(report.created_at).toLocaleDateString()}</td>
+                                    <td><span className="rp-test-count">🧪 {report.test_count || 0}</span></td>
+                                    <td className="rp-date-cell">
+                                        {new Date(report.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                    </td>
                                     <td>{getStatusBadge(report.status)}</td>
                                     <td>
                                         <div className="outbound-status-stack">
@@ -390,39 +429,24 @@ const Reports = () => {
                                                     </div>
                                                 ))
                                             ) : (
-                                                <span className="sample-id-badge">{report.sample_id || '-'}</span>
+                                                <span className="sample-id-badge">{report.sample_id || '—'}</span>
                                             )}
                                         </div>
                                     </td>
                                     <td className="actions">
-                                        <button
-                                            onClick={() => handleViewReport(report.id)}
-                                            className="btn-view"
-                                        >
-                                            {report.status === 'PENDING' ? 'Enter Results' : 'View'}
+                                        <button onClick={() => handleViewReport(report.id)} className="btn-view">
+                                            {report.status === 'PENDING' ? '✏️ Enter' : '👁 View'}
                                         </button>
-                                        <button
-                                            onClick={() => handleOpenOutboundModal(report)}
-                                            className="btn-outbound"
-                                            title="Send to External Lab"
-                                        >
+                                        <button onClick={() => handleOpenOutboundModal(report)} className="btn-outbound" title="Send to External Lab">
                                             📤 Send
                                         </button>
                                         {(report.status?.toUpperCase() === 'VERIFIED' || report.status?.toUpperCase() === 'COMPLETED') && (
-                                            <button
-                                                onClick={() => handleDownloadPDF(report.id)}
-                                                className="btn-download"
-                                                title="Download PDF Report"
-                                            >
+                                            <button onClick={() => handleDownloadPDF(report.id)} className="btn-download" title="Download PDF">
                                                 📄 PDF
                                             </button>
                                         )}
-                                        <button
-                                            onClick={() => handlePrintBarcode(report)}
-                                            className="btn-barcode"
-                                            title="Print Barcode"
-                                        >
-                                            🖨️ Barcode
+                                        <button onClick={() => handlePrintBarcode(report)} className="btn-barcode" title="Print Barcode">
+                                            🖨 Label
                                         </button>
                                     </td>
                                 </tr>
