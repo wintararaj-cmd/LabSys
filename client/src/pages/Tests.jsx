@@ -81,7 +81,7 @@ function Tests() {
             normal_range_female: test.normal_range_female || '',
             unit: test.unit || '',
             sample_type: test.sample_type,
-            gstPercentage: test.gst_percentage || 0,
+            gstPercentage: parseFloat(test.gst_percentage) || 0,
             isProfile: test.is_profile || false,
             profileItems: test.profileItems ? test.profileItems.map(p => p.test_id) : []
         });
@@ -296,7 +296,7 @@ function Tests() {
                                 <select
                                     className="form-select"
                                     value={formData.gstPercentage}
-                                    onChange={(e) => setFormData({ ...formData, gstPercentage: e.target.value })}
+                                    onChange={(e) => setFormData({ ...formData, gstPercentage: parseFloat(e.target.value) })}
                                     required
                                 >
                                     <option value="0">0%</option>

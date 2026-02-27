@@ -154,26 +154,31 @@ const updateTest = async (req, res) => {
 
         const tenantId = req.tenantId;
 
+        // Parse gstPercentage explicitly — the <select> returns a string (e.g. "0"),
+        // and we must ensure numeric 0 is stored, not skipped.
+        const parsedGst = parseFloat(gstPercentage);
+        const gstValue = isNaN(parsedGst) ? 0 : parsedGst;
+
         const result = await query(
             `UPDATE tests SET
-        name = COALESCE($1, name),
-        code = COALESCE($2, code),
-        category = COALESCE($3, category),
+        name = $1,
+        code = $2,
+        category = $3,
         department = COALESCE($4, department),
-        price = COALESCE($5, price),
-        cost = COALESCE($6, cost),
+        price = $5,
+        cost = $6,
         tat_hours = COALESCE($7, tat_hours),
         normal_range_male = COALESCE($8, normal_range_male),
         normal_range_female = COALESCE($9, normal_range_female),
         unit = COALESCE($10, unit),
         sample_type = COALESCE($11, sample_type),
-        gst_percentage = COALESCE($12, gst_percentage),
+        gst_percentage = $12,
         is_profile = COALESCE($13, is_profile)
       WHERE id = $14 AND tenant_id = $15
       RETURNING *`,
             [
                 name, code, category, department || null, price, cost, tatHours,
-                normalRangeMale, normalRangeFemale, unit, sampleType, gstPercentage,
+                normalRangeMale, normalRangeFemale, unit, sampleType, gstValue,
                 isProfile !== undefined ? isProfile : null,
                 id, tenantId
             ]
