@@ -1,26 +1,83 @@
 import React, { useState, useEffect } from 'react';
-import { financeAPI } from '../services/api';
+import { financeAPI, cashBookEntryAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import { exportToCSV } from '../utils/exportCSV';
 import './FinancialReports.css';
 
 const FinancialReports = () => {
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState('SALE');
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState([]);
     const [cashSummary, setCashSummary] = useState(null);
     const [error, setError] = useState('');
 
+    // Entry modal state
+    const [showEntryModal, setShowEntryModal] = useState(false);
+    const [entryForm, setEntryForm] = useState({
+        entry_date: new Date().toISOString().split('T')[0],
+        type: 'CASH_OUT',
+        particulars: '',
+        reference: '',
+        amount: '',
+        payment_mode: 'CASH',
+        category: '',
+        notes: '',
+    });
+    const [entrySubmitting, setEntrySubmitting] = useState(false);
+    const [editingEntryId, setEditingEntryId] = useState(null);
+
     // Filters
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [paymentMode, setPaymentMode] = useState('ALL');
-    // Cash Book view filter (client-side slice)
     const [cbView, setCbView] = useState('ALL');
 
     useEffect(() => { fetchReportData(); }, [activeTab, startDate, endDate, paymentMode]);
-    // reset cbView when tab changes
     useEffect(() => { if (activeTab !== 'CASH') setCbView('ALL'); }, [activeTab]);
 
+    /* ── Entry modal helpers ─────────────────────────────────── */
+    const openNewEntry = (typeDefault = 'CASH_OUT') => {
+        setEditingEntryId(null);
+        setEntryForm({
+            entry_date: new Date().toISOString().split('T')[0],
+            type: typeDefault,
+            particulars: '',
+            reference: '',
+            amount: '',
+            payment_mode: typeDefault.startsWith('CASH') ? 'CASH' : 'BANK',
+            category: '',
+            notes: '',
+        });
+        setShowEntryModal(true);
+    };
+
+    const handleEntryTypeChange = (type) => {
+        setEntryForm(f => ({ ...f, type, payment_mode: type.startsWith('CASH') ? 'CASH' : 'BANK' }));
+    };
+
+    const handleEntrySave = async () => {
+        if (!entryForm.particulars.trim()) { toast.error('Particulars are required'); return; }
+        if (!entryForm.amount || parseFloat(entryForm.amount) <= 0) { toast.error('Enter a valid amount'); return; }
+        setEntrySubmitting(true);
+        try {
+            if (editingEntryId) {
+                await cashBookEntryAPI.update(editingEntryId, entryForm);
+                toast.success('Entry updated');
+            } else {
+                await cashBookEntryAPI.create(entryForm);
+                toast.success('Entry recorded');
+            }
+            setShowEntryModal(false);
+            fetchReportData();
+        } catch (err) {
+            toast.error('Failed to save entry');
+        } finally {
+            setEntrySubmitting(false);
+        }
+    };
+
+    /* ── Data fetching ───────────────────────────────────────── */
     const fetchReportData = async () => {
         setLoading(true);
         setError('');
@@ -51,6 +108,7 @@ const FinancialReports = () => {
 
     const fc = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
 
+    /* ── Export ──────────────────────────────────────────────── */
     const handleExport = () => {
         if (data.length === 0) return;
         const tabLabels = { SALE: 'sale-report', GST: 'gst-report', CASH: 'cash-book' };
@@ -80,95 +138,68 @@ const FinancialReports = () => {
         exportToCSV(filename, data, columnMap[activeTab]);
     };
 
-    /* ── Cash Book Double-Column Renderer ──────────────────────────── */
+    /* ── Cash Book Double-Column ─────────────────────────────── */
     const renderCashBook = () => {
         const CATEGORY_ICON = {
-            'Patient Receipt': '🏥',
-            'Due Collection': '📋',
-            'Doctor Payout': '👨‍⚕️',
-            'Purchase': '📦',
+            'Patient Receipt': '🏥', 'Due Collection': '📋',
+            'Doctor Payout': '👨‍⚕️', 'Purchase': '📦', 'Manual Entry': '✏️',
         };
         const CATEGORY_COLOR = {
-            'Patient Receipt': 'inward',
-            'Due Collection': 'inward-alt',
-            'Doctor Payout': 'outward',
-            'Purchase': 'outward-alt',
+            'Patient Receipt': 'inward', 'Due Collection': 'inward-alt',
+            'Doctor Payout': 'outward', 'Purchase': 'outward-alt', 'Manual Entry': 'outward',
         };
 
         return (
             <div className="cb-root">
-                {/* ── Summary tiles ───────────────────────── */}
+                {/* Summary tiles */}
                 {cashSummary && (
                     <div className="cb-summary-row">
                         <div className="cb-tile cb-tile-cashin">
                             <div className="cb-tile-icon">💵</div>
-                            <div>
-                                <div className="cb-tile-label">Cash Receipts</div>
-                                <div className="cb-tile-value">{fc(cashSummary.totalCashIn)}</div>
-                            </div>
+                            <div><div className="cb-tile-label">Cash Receipts</div><div className="cb-tile-value">{fc(cashSummary.totalCashIn)}</div></div>
                         </div>
                         <div className="cb-tile cb-tile-bankin">
                             <div className="cb-tile-icon">🏦</div>
-                            <div>
-                                <div className="cb-tile-label">Bank Receipts</div>
-                                <div className="cb-tile-value">{fc(cashSummary.totalBankIn)}</div>
-                            </div>
+                            <div><div className="cb-tile-label">Bank Receipts</div><div className="cb-tile-value">{fc(cashSummary.totalBankIn)}</div></div>
                         </div>
                         <div className="cb-tile cb-tile-cashout">
                             <div className="cb-tile-icon">📤</div>
-                            <div>
-                                <div className="cb-tile-label">Cash Payments</div>
-                                <div className="cb-tile-value">{fc(cashSummary.totalCashOut)}</div>
-                            </div>
+                            <div><div className="cb-tile-label">Cash Payments</div><div className="cb-tile-value">{fc(cashSummary.totalCashOut)}</div></div>
                         </div>
                         <div className="cb-tile cb-tile-bankout">
                             <div className="cb-tile-icon">🏧</div>
-                            <div>
-                                <div className="cb-tile-label">Bank Payments</div>
-                                <div className="cb-tile-value">{fc(cashSummary.totalBankOut)}</div>
-                            </div>
+                            <div><div className="cb-tile-label">Bank Payments</div><div className="cb-tile-value">{fc(cashSummary.totalBankOut)}</div></div>
                         </div>
                         <div className="cb-tile cb-tile-closing">
                             <div className="cb-tile-icon">📊</div>
                             <div>
                                 <div className="cb-tile-label">Closing Cash</div>
-                                <div className={`cb-tile-value ${cashSummary.closingCash < 0 ? 'text-danger' : ''}`}>
-                                    {fc(cashSummary.closingCash)}
-                                </div>
+                                <div className={`cb-tile-value ${cashSummary.closingCash < 0 ? 'text-danger' : ''}`}>{fc(cashSummary.closingCash)}</div>
                             </div>
                         </div>
                         <div className="cb-tile cb-tile-closing-bank">
                             <div className="cb-tile-icon">🏛️</div>
                             <div>
                                 <div className="cb-tile-label">Closing Bank</div>
-                                <div className={`cb-tile-value ${cashSummary.closingBank < 0 ? 'text-danger' : ''}`}>
-                                    {fc(cashSummary.closingBank)}
-                                </div>
+                                <div className={`cb-tile-value ${cashSummary.closingBank < 0 ? 'text-danger' : ''}`}>{fc(cashSummary.closingBank)}</div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* ── Double-column table ─────────────────── */}
+                {/* Double-column table */}
                 <div className="cb-table-wrap">
                     <table className="cb-table">
                         <thead>
-                            {/* Column group headers */}
                             <tr className="cb-col-group-row">
-                                <th colSpan="4" className="cb-group-header cb-group-dr">
-                                    📥 Dr Side — Receipts (Cash In)
-                                </th>
-                                <th colSpan="4" className="cb-group-header cb-group-cr">
-                                    📤 Cr Side — Payments (Cash Out)
-                                </th>
+                                <th colSpan="4" className="cb-group-header cb-group-dr">📥 Dr Side — Receipts (Cash In)</th>
+                                <th colSpan="4" className="cb-group-header cb-group-cr">📤 Cr Side — Payments (Cash Out)</th>
                             </tr>
                             <tr>
-                                {/* DR side */}
                                 <th className="cb-th-dr">Date</th>
                                 <th className="cb-th-dr">Particulars</th>
                                 <th className="cb-th-dr cb-num">Cash (₹)</th>
                                 <th className="cb-th-dr cb-num">Bank (₹)</th>
-                                {/* CR side */}
                                 <th className="cb-th-cr">Date</th>
                                 <th className="cb-th-cr">Particulars</th>
                                 <th className="cb-th-cr cb-num">Cash (₹)</th>
@@ -177,7 +208,6 @@ const FinancialReports = () => {
                         </thead>
                         <tbody>
                             {(() => {
-                                // Apply cbView client-side slice
                                 let inward = data.filter(r => r.type === 'INWARD');
                                 let outward = data.filter(r => r.type === 'OUTWARD');
                                 if (cbView === 'CASH_RECEIPT') { inward = inward.filter(r => r.cash_in > 0); outward = []; }
@@ -189,9 +219,7 @@ const FinancialReports = () => {
                                 if (data.length === 0) {
                                     return (
                                         <tr>
-                                            <td colSpan="8" className="cb-no-data">
-                                                No transactions found for the selected period
-                                            </td>
+                                            <td colSpan="8" className="cb-no-data">No transactions found for the selected period</td>
                                         </tr>
                                     );
                                 }
@@ -201,7 +229,6 @@ const FinancialReports = () => {
                                     const cr = outward[i];
                                     return (
                                         <tr key={i} className={i % 2 === 0 ? 'cb-row-even' : 'cb-row-odd'}>
-                                            {/* DR side */}
                                             {dr ? (
                                                 <>
                                                     <td className="cb-td-dr cb-date">
@@ -209,22 +236,17 @@ const FinancialReports = () => {
                                                     </td>
                                                     <td className="cb-td-dr cb-particulars">
                                                         <span className="cb-cat-dot" data-cat={CATEGORY_COLOR[dr.category]} title={dr.category}>
-                                                            {CATEGORY_ICON[dr.category]}
+                                                            {CATEGORY_ICON[dr.category] || '•'}
                                                         </span>
                                                         <span className="cb-main">{dr.particulars}</span>
                                                         <span className="cb-ref">{dr.reference} · <span className={`mode-badge ${dr.payment_mode}`}>{dr.payment_mode}</span></span>
                                                     </td>
-                                                    <td className="cb-td-dr cb-num cb-cash-in">
-                                                        {dr.cash_in > 0 ? fc(dr.cash_in) : '—'}
-                                                    </td>
-                                                    <td className="cb-td-dr cb-num cb-bank-in">
-                                                        {dr.bank_in > 0 ? fc(dr.bank_in) : '—'}
-                                                    </td>
+                                                    <td className="cb-td-dr cb-num cb-cash-in">{dr.cash_in > 0 ? fc(dr.cash_in) : '—'}</td>
+                                                    <td className="cb-td-dr cb-num cb-bank-in">{dr.bank_in > 0 ? fc(dr.bank_in) : '—'}</td>
                                                 </>
                                             ) : (
                                                 <td colSpan="4" className="cb-td-dr cb-empty" />
                                             )}
-                                            {/* CR side */}
                                             {cr ? (
                                                 <>
                                                     <td className="cb-td-cr cb-date">
@@ -232,17 +254,13 @@ const FinancialReports = () => {
                                                     </td>
                                                     <td className="cb-td-cr cb-particulars">
                                                         <span className="cb-cat-dot" data-cat={CATEGORY_COLOR[cr.category]} title={cr.category}>
-                                                            {CATEGORY_ICON[cr.category]}
+                                                            {CATEGORY_ICON[cr.category] || '•'}
                                                         </span>
                                                         <span className="cb-main">{cr.particulars}</span>
                                                         <span className="cb-ref">{cr.reference} · <span className={`mode-badge ${cr.payment_mode}`}>{cr.payment_mode}</span></span>
                                                     </td>
-                                                    <td className="cb-td-cr cb-num cb-cash-out">
-                                                        {cr.cash_out > 0 ? fc(cr.cash_out) : '—'}
-                                                    </td>
-                                                    <td className="cb-td-cr cb-num cb-bank-out">
-                                                        {cr.bank_out > 0 ? fc(cr.bank_out) : '—'}
-                                                    </td>
+                                                    <td className="cb-td-cr cb-num cb-cash-out">{cr.cash_out > 0 ? fc(cr.cash_out) : '—'}</td>
+                                                    <td className="cb-td-cr cb-num cb-bank-out">{cr.bank_out > 0 ? fc(cr.bank_out) : '—'}</td>
                                                 </>
                                             ) : (
                                                 <td colSpan="4" className="cb-td-cr cb-empty" />
@@ -264,10 +282,10 @@ const FinancialReports = () => {
                                 </tr>
                                 <tr className="cb-closing-row">
                                     <td className="cb-td-dr" colSpan="4">
-                                        <span>Closing Cash Balance: <strong className={cashSummary.closingCash < 0 ? 'text-danger' : 'text-success'}>{fc(cashSummary.closingCash)}</strong></span>
+                                        Closing Cash: <strong className={cashSummary.closingCash < 0 ? 'text-danger' : 'text-success'}>{fc(cashSummary.closingCash)}</strong>
                                     </td>
                                     <td className="cb-td-cr" colSpan="4">
-                                        <span>Closing Bank Balance: <strong className={cashSummary.closingBank < 0 ? 'text-danger' : 'text-success'}>{fc(cashSummary.closingBank)}</strong></span>
+                                        Closing Bank: <strong className={cashSummary.closingBank < 0 ? 'text-danger' : 'text-success'}>{fc(cashSummary.closingBank)}</strong>
                                     </td>
                                 </tr>
                             </tfoot>
@@ -281,12 +299,13 @@ const FinancialReports = () => {
                     <span><span className="cb-cat-dot" data-cat="inward-alt">📋</span> Due Collection</span>
                     <span><span className="cb-cat-dot" data-cat="outward">👨‍⚕️</span> Doctor Payout</span>
                     <span><span className="cb-cat-dot" data-cat="outward-alt">📦</span> Purchase</span>
+                    <span><span className="cb-cat-dot" data-cat="outward">✏️</span> Manual Entry</span>
                 </div>
             </div>
         );
     };
 
-    /* ── GST Report ─────────────────────────────────────────────────── */
+    /* ── GST Report ──────────────────────────────────────────── */
     const renderGSTReport = () => (
         <div className="report-table-wrapper">
             <table className="report-table">
@@ -319,7 +338,7 @@ const FinancialReports = () => {
         </div>
     );
 
-    /* ── Sale Report ─────────────────────────────────────────────────── */
+    /* ── Sale Report ─────────────────────────────────────────── */
     const renderSaleReport = () => (
         <div className="report-table-wrapper">
             <table className="report-table">
@@ -359,16 +378,17 @@ const FinancialReports = () => {
         </div>
     );
 
+    /* ── Main render ─────────────────────────────────────────── */
     return (
         <div className="finance-reports">
+            {/* Page header */}
             <div className="page-header">
                 <div>
                     <h1>💰 Financial Reports</h1>
                     <p>Analyze sales, taxation, and collections</p>
                 </div>
                 <div className="header-actions">
-                    <button className="btn-export" onClick={handleExport} disabled={data.length === 0 || loading}
-                        title={`Export ${activeTab === 'SALE' ? 'Sale Report' : activeTab === 'GST' ? 'GST Report' : 'Cash Book'} to CSV`}>
+                    <button className="btn-export" onClick={handleExport} disabled={data.length === 0 || loading}>
                         📥 Export CSV
                     </button>
                     <button onClick={() => window.print()} className="btn btn-secondary">
@@ -381,6 +401,7 @@ const FinancialReports = () => {
             </div>
 
             <div className="reports-card">
+                {/* Tabs + action buttons */}
                 <div className="tabs-header">
                     <button className={`tab-btn ${activeTab === 'SALE' ? 'active' : ''}`} onClick={() => setActiveTab('SALE')}>
                         📈 Sale Report
@@ -391,8 +412,25 @@ const FinancialReports = () => {
                     <button className={`tab-btn ${activeTab === 'CASH' ? 'active' : ''}`} onClick={() => setActiveTab('CASH')}>
                         💸 Cash Book
                     </button>
+                    {activeTab === 'CASH' && (
+                        <div className="cb-entry-btns">
+                            <button className="cb-entry-btn cb-entry-cashout" onClick={() => openNewEntry('CASH_OUT')} title="Record Cash Payment">
+                                📤 Cash Payment
+                            </button>
+                            <button className="cb-entry-btn cb-entry-bankout" onClick={() => openNewEntry('BANK_OUT')} title="Record Bank Payment">
+                                🏧 Bank Payment
+                            </button>
+                            <button className="cb-entry-btn cb-entry-cashin" onClick={() => openNewEntry('CASH_IN')} title="Record Cash Receipt">
+                                💵 Cash Receipt
+                            </button>
+                            <button className="cb-entry-btn cb-entry-bankin" onClick={() => openNewEntry('BANK_IN')} title="Record Bank Receipt">
+                                🏦 Bank Receipt
+                            </button>
+                        </div>
+                    )}
                 </div>
 
+                {/* Filters */}
                 <div className="filters-bar">
                     <div className="filter-group">
                         <label>From Date</label>
@@ -412,9 +450,11 @@ const FinancialReports = () => {
                                     <option value="CARD">Card</option>
                                     <option value="UPI">UPI</option>
                                     <option value="ONLINE">Online</option>
+                                    <option value="BANK">Bank</option>
+                                    <option value="CHEQUE">Cheque</option>
                                 </select>
                             </div>
-                            <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+                            <div className="filter-group">
                                 <label>View</label>
                                 <div className="cb-view-seg">
                                     {[
@@ -438,6 +478,7 @@ const FinancialReports = () => {
                     )}
                 </div>
 
+                {/* Content */}
                 <div className="report-content">
                     {loading ? (
                         <div className="loading-state">
@@ -455,6 +496,121 @@ const FinancialReports = () => {
                     )}
                 </div>
             </div>
+
+            {/* ── Cash Book Entry Modal ──────────────────────────────── */}
+            {showEntryModal && (
+                <div className="cb-modal-overlay" onClick={() => setShowEntryModal(false)}>
+                    <div className="cb-modal" onClick={e => e.stopPropagation()}>
+                        <div className="cb-modal-header">
+                            <h2>📝 {editingEntryId ? 'Edit' : 'New'} Cash Book Entry</h2>
+                            <button className="cb-modal-close" onClick={() => setShowEntryModal(false)}>✕</button>
+                        </div>
+
+                        {/* Transaction type selector */}
+                        <div className="cb-modal-type-row">
+                            {[
+                                { val: 'CASH_IN', label: '💵 Cash In', cls: 'type-cashin' },
+                                { val: 'BANK_IN', label: '🏦 Bank In', cls: 'type-bankin' },
+                                { val: 'CASH_OUT', label: '📤 Cash Out', cls: 'type-cashout' },
+                                { val: 'BANK_OUT', label: '🏧 Bank Out', cls: 'type-bankout' },
+                            ].map(({ val, label, cls }) => (
+                                <button
+                                    key={val}
+                                    className={`cb-type-btn ${cls} ${entryForm.type === val ? 'selected' : ''}`}
+                                    onClick={() => handleEntryTypeChange(val)}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="cb-modal-body">
+                            <div className="cb-modal-row">
+                                <div className="cb-modal-field">
+                                    <label>Date *</label>
+                                    <input type="date" value={entryForm.entry_date}
+                                        onChange={e => setEntryForm(f => ({ ...f, entry_date: e.target.value }))} />
+                                </div>
+                                <div className="cb-modal-field">
+                                    <label>Amount (₹) *</label>
+                                    <input type="number" min="0" step="0.01" placeholder="0.00"
+                                        value={entryForm.amount}
+                                        onChange={e => setEntryForm(f => ({ ...f, amount: e.target.value }))} />
+                                </div>
+                            </div>
+
+                            <div className="cb-modal-field full">
+                                <label>Particulars / Description *</label>
+                                <input type="text" placeholder="e.g. Office Rent, Electricity Bill, Salary..."
+                                    value={entryForm.particulars}
+                                    onChange={e => setEntryForm(f => ({ ...f, particulars: e.target.value }))} />
+                            </div>
+
+                            <div className="cb-modal-row">
+                                <div className="cb-modal-field">
+                                    <label>Payment Mode</label>
+                                    <select value={entryForm.payment_mode}
+                                        onChange={e => setEntryForm(f => ({ ...f, payment_mode: e.target.value }))}>
+                                        <option value="CASH">Cash</option>
+                                        <option value="BANK">Bank Transfer</option>
+                                        <option value="UPI">UPI</option>
+                                        <option value="CARD">Card</option>
+                                        <option value="CHEQUE">Cheque</option>
+                                    </select>
+                                </div>
+                                <div className="cb-modal-field">
+                                    <label>Category</label>
+                                    <select value={entryForm.category}
+                                        onChange={e => setEntryForm(f => ({ ...f, category: e.target.value }))}>
+                                        <option value="">— Select Category —</option>
+                                        <optgroup label="Expenses">
+                                            <option>Rent</option>
+                                            <option>Electricity / Utilities</option>
+                                            <option>Salary / Staff</option>
+                                            <option>Maintenance</option>
+                                            <option>Consumables</option>
+                                            <option>Equipment</option>
+                                            <option>Transport</option>
+                                            <option>Miscellaneous Expense</option>
+                                        </optgroup>
+                                        <optgroup label="Receipts">
+                                            <option>Advance Deposit</option>
+                                            <option>Loan Received</option>
+                                            <option>Other Income</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="cb-modal-row">
+                                <div className="cb-modal-field">
+                                    <label>Reference / Voucher #</label>
+                                    <input type="text" placeholder="e.g. CHQ-001, RTGS-123"
+                                        value={entryForm.reference}
+                                        onChange={e => setEntryForm(f => ({ ...f, reference: e.target.value }))} />
+                                </div>
+                                <div className="cb-modal-field">
+                                    <label>Notes</label>
+                                    <input type="text" placeholder="Optional note"
+                                        value={entryForm.notes}
+                                        onChange={e => setEntryForm(f => ({ ...f, notes: e.target.value }))} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="cb-modal-footer">
+                            <button className="btn btn-secondary" onClick={() => setShowEntryModal(false)}>Cancel</button>
+                            <button
+                                className={`btn cb-save-btn ${entryForm.type.includes('OUT') ? 'cb-save-out' : 'cb-save-in'}`}
+                                onClick={handleEntrySave}
+                                disabled={entrySubmitting}
+                            >
+                                {entrySubmitting ? 'Saving...' : (editingEntryId ? '✔ Update Entry' : '+ Save Entry')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

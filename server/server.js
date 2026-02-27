@@ -56,6 +56,7 @@ const radiologyRoutes = require('./routes/radiologyRoutes.js');
 const publicRoutes = require('./routes/public.routes.js');
 const auditRoutes = require('./routes/audit.routes.js');
 const notificationRoutes = require('./routes/notification.routes.js');
+const cashBookRoutes = require('./routes/cashbook.routes.js');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -76,6 +77,7 @@ app.use('/api/external-labs', externalLabRoutes);
 app.use('/api/radiology', radiologyRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/cash-book-entries', cashBookRoutes);
 
 
 // Serve uploads statically
@@ -112,7 +114,23 @@ app.listen(PORT, async () => {
   // Auto-run missing migrations for remote servers
   try {
     await query('ALTER TABLE tests ADD COLUMN IF NOT EXISTS gst_percentage DECIMAL(5,2) DEFAULT 0.00');
-    console.log('✅ Auto-migration: gst_percentage column check passed.');
+    await query(`
+      CREATE TABLE IF NOT EXISTS cash_book_entries (
+        id           SERIAL PRIMARY KEY,
+        tenant_id    INT REFERENCES tenants(id) ON DELETE CASCADE,
+        entry_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+        type         VARCHAR(20) NOT NULL CHECK (type IN ('CASH_IN','CASH_OUT','BANK_IN','BANK_OUT')),
+        particulars  VARCHAR(255) NOT NULL,
+        reference    VARCHAR(100),
+        amount       DECIMAL(10,2) NOT NULL,
+        payment_mode VARCHAR(20) DEFAULT 'CASH',
+        category     VARCHAR(100),
+        notes        TEXT,
+        created_by   INT REFERENCES users(id) ON DELETE SET NULL,
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Auto-migration: all checks passed.');
   } catch (err) {
     console.error('❌ Auto-migration failed:', err.message);
   }

@@ -208,11 +208,28 @@ const getCashBook = async (req, res) => {
             ${dateFilterPurchase}
         `;
 
-        const [inwardRes, dueRes, payoutRes, purchaseRes] = await Promise.allSettled([
+        const [inwardRes, dueRes, payoutRes, purchaseRes, manualRes] = await Promise.allSettled([
             query(inwardSql, params),
             query(duePaySql, params),
             query(payoutSql, paramsForPayout),
             query(purchaseSql, paramsForPurchase),
+            // ── Manual cash book entries ────────────────────────────────
+            query(`
+                SELECT
+                    entry_date::timestamp as created_at,
+                    COALESCE(reference, 'ENTRY-' || id) as reference,
+                    particulars,
+                    payment_mode,
+                    CASE type WHEN 'CASH_IN'  THEN amount ELSE 0 END as cash_in,
+                    CASE type WHEN 'BANK_IN'  THEN amount ELSE 0 END as bank_in,
+                    CASE type WHEN 'CASH_OUT' THEN amount ELSE 0 END as cash_out,
+                    CASE type WHEN 'BANK_OUT' THEN amount ELSE 0 END as bank_out,
+                    CASE WHEN type IN ('CASH_IN','BANK_IN') THEN 'INWARD' ELSE 'OUTWARD' END as type,
+                    COALESCE(category, 'Manual Entry') as category
+                FROM cash_book_entries
+                WHERE tenant_id = $1
+                ${dateFilter.replace(/created_at/g, 'entry_date::timestamp')}
+            `, params),
         ]);
 
         let rows = [
@@ -220,7 +237,9 @@ const getCashBook = async (req, res) => {
             ...(dueRes.status === 'fulfilled' ? dueRes.value.rows : []),
             ...(payoutRes.status === 'fulfilled' ? payoutRes.value.rows : []),
             ...(purchaseRes.status === 'fulfilled' ? purchaseRes.value.rows : []),
+            ...(manualRes.status === 'fulfilled' ? manualRes.value.rows : []),
         ];
+
 
         // Apply payment mode filter at application level if specified
         if (paymentMode && paymentMode !== 'ALL') {

@@ -143,6 +143,14 @@ export const financeAPI = {
     getSaleReport: (params) => api.get('/finance/sale', { params }),
 };
 
+// Manual Cash Book Entry API
+export const cashBookEntryAPI = {
+    getAll: (params) => api.get('/cash-book-entries', { params }),
+    create: (data) => api.post('/cash-book-entries', data),
+    update: (id, data) => api.put(`/cash-book-entries/${id}`, data),
+    delete: (id) => api.delete(`/cash-book-entries/${id}`),
+};
+
 // Purchase API
 export const purchaseAPI = {
     getAll: (params) => api.get('/purchases', { params }),
