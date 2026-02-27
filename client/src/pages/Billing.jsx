@@ -89,6 +89,87 @@ function Billing() {
         calculateTotals();
     }, [formData.selectedTests, formData.discount_amount, formData.paid_amount]);
 
+    // ── Keyboard Shortcuts ──────────────────────────────────────────
+    useEffect(() => {
+        const handler = (e) => {
+            const tag = document.activeElement?.tagName?.toLowerCase();
+            const isTyping = ['input', 'textarea', 'select'].includes(tag) ||
+                document.activeElement?.isContentEditable;
+            if (isTyping) return;
+
+            // N → open new invoice
+            if (e.key === 'n' || e.key === 'N') {
+                e.preventDefault();
+                setShowForm(true);
+                setEditMode(false);
+                setEditingInvoiceId(null);
+                // Reset form fields when opening fresh
+                setFormData({
+                    patient_id: '',
+                    doctor_id: '',
+                    introducer_id: '',
+                    introducer_raw: '',
+                    department: 'GENERAL',
+                    discount_amount: 0,
+                    payment_mode: 'CASH',
+                    paid_amount: 0,
+                    selectedTests: []
+                });
+                setSelectedPatient(null);
+                setCommissionPreview(null);
+                setDoctorSearch('');
+                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+            }
+
+            // Esc → close form
+            if (e.key === 'Escape') {
+                setShowForm(false);
+                setEditMode(false);
+                setEditingInvoiceId(null);
+            }
+
+            // R → refresh invoice list
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                loadData();
+                loadPreviousDues();
+            }
+        };
+
+        const onRefresh = () => {
+            loadData();
+            loadPreviousDues();
+        };
+
+        const onExport = () => {
+            if (invoices.length > 0) {
+                exportToCSV('invoices', invoices, [
+                    { key: 'invoice_number', label: 'Invoice #' },
+                    { key: 'patient_name', label: 'Patient' },
+                    { key: 'created_at', label: 'Date' },
+                    { key: 'net_amount', label: 'Net Amount' },
+                    { key: 'paid_amount', label: 'Paid' },
+                    { key: 'balance_amount', label: 'Balance' },
+                    { key: 'payment_status', label: 'Status' },
+                    { key: 'payment_mode', label: 'Mode' },
+                    { key: 'doctor_name', label: 'Doctor' },
+                ]);
+            }
+        };
+
+        window.addEventListener('keydown', handler);
+        window.addEventListener('labsys:refresh', onRefresh);
+        window.addEventListener('labsys:export', onExport);
+
+        return () => {
+            window.removeEventListener('keydown', handler);
+            window.removeEventListener('labsys:refresh', onRefresh);
+            window.removeEventListener('labsys:export', onExport);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [invoices]);
+
+
     // Filter tests by their stored department column (exact match)
     const getTestsForDepartment = (dept) => {
         if (!tests.length) return [];
