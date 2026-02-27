@@ -10,6 +10,8 @@ const FinancialReports = () => {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState([]);
     const [cashSummary, setCashSummary] = useState(null);
+    const [gstData, setGstData] = useState(null);   // { outputRows, inputRows, slabSummary, summary }
+    const [gstView, setGstView] = useState('SLAB'); // SLAB | OUTPUT | INPUT
     const [error, setError] = useState('');
 
     // Entry modal state
@@ -86,17 +88,20 @@ const FinancialReports = () => {
             const params = { startDate, endDate };
             if (activeTab === 'GST') {
                 response = await financeAPI.getGSTReport(params);
-                setData(response.data.data || []);
+                setGstData(response.data);   // { outputRows, inputRows, slabSummary, summary }
+                setData([]);                 // not used for GST
                 setCashSummary(null);
             } else if (activeTab === 'CASH') {
                 params.paymentMode = paymentMode;
                 response = await financeAPI.getCashBook(params);
                 setData(response.data.data || []);
                 setCashSummary(response.data.summary || null);
+                setGstData(null);
             } else if (activeTab === 'SALE') {
                 response = await financeAPI.getSaleReport(params);
                 setData(response.data.data || []);
                 setCashSummary(null);
+                setGstData(null);
             }
         } catch (err) {
             setError('Failed to fetch report data. Please try again.');
@@ -110,9 +115,25 @@ const FinancialReports = () => {
 
     /* ── Export ──────────────────────────────────────────────── */
     const handleExport = () => {
-        if (data.length === 0) return;
         const tabLabels = { SALE: 'sale-report', GST: 'gst-report', CASH: 'cash-book' };
         const filename = `${tabLabels[activeTab]}_${startDate}_${endDate}`;
+
+        if (activeTab === 'GST' && gstData) {
+            // Export both Output and Input rows
+            const rows = [
+                ...gstData.outputRows.map(r => ({ ...r, gst_type: 'GST OUT (Output)' })),
+                ...gstData.inputRows.map(r => ({ ...r, gst_type: 'GST IN (Input)' })),
+            ];
+            exportToCSV(filename, rows, [
+                { key: 'date', label: 'Date' }, { key: 'invoice_number', label: 'Invoice #' },
+                { key: 'party_name', label: 'Party' }, { key: 'gst_type', label: 'Type' },
+                { key: 'gst_rate', label: 'GST Rate (%)' },
+                { key: 'taxable_amount', label: 'Taxable (₹)' }, { key: 'gst_amount', label: 'GST (₹)' },
+            ]);
+            return;
+        }
+
+        if (data.length === 0) return;
         const columnMap = {
             SALE: [
                 { key: 'created_at', label: 'Date' }, { key: 'invoice_number', label: 'Invoice #' },
@@ -121,11 +142,6 @@ const FinancialReports = () => {
                 { key: 'tax_amount', label: 'Tax' }, { key: 'net_amount', label: 'Net Amount' },
                 { key: 'paid_amount', label: 'Paid' }, { key: 'balance_amount', label: 'Balance' },
                 { key: 'payment_status', label: 'Status' }, { key: 'payment_mode', label: 'Mode' },
-            ],
-            GST: [
-                { key: 'date', label: 'Date' }, { key: 'invoice_number', label: 'Invoice #' },
-                { key: 'patient_name', label: 'Patient' }, { key: 'taxable_amount', label: 'Taxable Amount' },
-                { key: 'tax_amount', label: 'GST Amount' }, { key: 'total_amount', label: 'Total Amount' },
             ],
             CASH: [
                 { key: 'created_at', label: 'Date/Time' }, { key: 'reference', label: 'Reference' },
@@ -306,37 +322,191 @@ const FinancialReports = () => {
     };
 
     /* ── GST Report ──────────────────────────────────────────── */
-    const renderGSTReport = () => (
-        <div className="report-table-wrapper">
-            <table className="report-table">
-                <thead><tr>
-                    <th>Date</th><th>Invoice #</th><th>Patient Name</th>
-                    <th>Taxable Amt</th><th>GST Amt</th><th>Total Amt</th>
-                </tr></thead>
-                <tbody>
-                    {data.map((row, i) => (
-                        <tr key={i}>
-                            <td>{new Date(row.date).toLocaleDateString()}</td>
-                            <td className="highlight">{row.invoice_number}</td>
-                            <td>{row.patient_name}</td>
-                            <td>{fc(row.taxable_amount)}</td>
-                            <td>{fc(row.tax_amount)}</td>
-                            <td className="bold">{fc(row.total_amount)}</td>
-                        </tr>
-                    ))}
-                    {data.length === 0 && <tr><td colSpan="6" className="no-data">No data found for the selected period</td></tr>}
-                </tbody>
-                {data.length > 0 && (
-                    <tfoot><tr>
-                        <td colSpan="3">Total</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.taxable_amount), 0))}</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.tax_amount), 0))}</td>
-                        <td>{fc(data.reduce((s, r) => s + parseFloat(r.total_amount), 0))}</td>
-                    </tr></tfoot>
+    const renderGSTReport = () => {
+        if (!gstData) return <div className="loading-state"><div className="spinner" /><p>Loading GST data...</p></div>;
+        const { outputRows = [], inputRows = [], slabSummary = [], summary = {} } = gstData;
+        const net = summary.netLiability || 0;
+
+        return (
+            <div className="gst-root">
+
+                {/* ── Summary cards */}
+                <div className="gst-summary-row">
+                    <div className="gst-tile gst-tile-out">
+                        <div className="gst-tile-icon">📊</div>
+                        <div>
+                            <div className="gst-tile-label">GST Collected (Output)</div>
+                            <div className="gst-tile-value">{fc(summary.totalOutputGST)}</div>
+                            <div className="gst-tile-sub">Taxable: {fc(summary.totalOutputTaxable)}</div>
+                        </div>
+                    </div>
+                    <div className="gst-tile gst-tile-in">
+                        <div className="gst-tile-icon">💰</div>
+                        <div>
+                            <div className="gst-tile-label">GST Paid (Input)</div>
+                            <div className="gst-tile-value">{fc(summary.totalInputGST)}</div>
+                            <div className="gst-tile-sub">Taxable: {fc(summary.totalInputTaxable)}</div>
+                        </div>
+                    </div>
+                    <div className={`gst-tile ${net >= 0 ? 'gst-tile-liability' : 'gst-tile-refund'}`}>
+                        <div className="gst-tile-icon">{net >= 0 ? '⚖️' : '⬆️'}</div>
+                        <div>
+                            <div className="gst-tile-label">{net >= 0 ? 'Net GST Payable' : 'Net GST Refundable'}</div>
+                            <div className="gst-tile-value">{fc(Math.abs(net))}</div>
+                            <div className="gst-tile-sub">{net >= 0 ? 'GST Out − GST In' : 'Credit available'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── Slab-wise reconciliation */}
+                {slabSummary.length > 0 && (
+                    <div className="gst-slab-card">
+                        <h3 className="gst-section-title">📊 GST Slab-wise Reconciliation</h3>
+                        <div className="report-table-wrapper">
+                            <table className="report-table gst-slab-table">
+                                <thead>
+                                    <tr>
+                                        <th className="gst-th-slab">GST Rate</th>
+                                        <th className="gst-th-out" colSpan="2">📊 Output (Collected from Patients)</th>
+                                        <th className="gst-th-in" colSpan="2">💰 Input (Paid on Purchases)</th>
+                                        <th className="gst-th-net">Net GST</th>
+                                    </tr>
+                                    <tr className="gst-th-sub-row">
+                                        <th className="gst-th-slab"></th>
+                                        <th className="gst-th-out">Taxable (₹)</th>
+                                        <th className="gst-th-out">GST (₹)</th>
+                                        <th className="gst-th-in">Taxable (₹)</th>
+                                        <th className="gst-th-in">GST (₹)</th>
+                                        <th className="gst-th-net">Payable (₹)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {slabSummary.map((row, i) => (
+                                        <tr key={i}>
+                                            <td><span className="gst-rate-badge">{row.rate}%</span></td>
+                                            <td className="text-right">{fc(row.output_taxable)}</td>
+                                            <td className="text-right gst-out-val">{fc(row.output_gst)}</td>
+                                            <td className="text-right">{fc(row.input_taxable)}</td>
+                                            <td className="text-right gst-in-val">{fc(row.input_gst)}</td>
+                                            <td className={`text-right bold ${parseFloat(row.net_gst) < 0 ? 'text-success' : 'gst-net-positive'}`}>
+                                                {fc(row.net_gst)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td><strong>Total</strong></td>
+                                        <td className="text-right"><strong>{fc(summary.totalOutputTaxable)}</strong></td>
+                                        <td className="text-right gst-out-val"><strong>{fc(summary.totalOutputGST)}</strong></td>
+                                        <td className="text-right"><strong>{fc(summary.totalInputTaxable)}</strong></td>
+                                        <td className="text-right gst-in-val"><strong>{fc(summary.totalInputGST)}</strong></td>
+                                        <td className={`text-right bold ${net < 0 ? 'text-success' : 'gst-net-positive'}`}><strong>{fc(net)}</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
                 )}
-            </table>
-        </div>
-    );
+
+                {slabSummary.length === 0 && (
+                    <div className="gst-no-slab">No GST entries found for this period. Ensure invoice items have GST percentages set.</div>
+                )}
+
+                {/* ── Transaction detail toggle */}
+                <div className="gst-view-bar">
+                    <span className="gst-view-label">Transaction Detail:</span>
+                    <div className="cb-view-seg">
+                        {[
+                            { val: 'OUTPUT', label: '📊 Output GST (Collected)' },
+                            { val: 'INPUT', label: '💰 Input GST (Paid)' },
+                        ].map(({ val, label }) => (
+                            <button key={val}
+                                className={`cb-seg-btn ${gstView === val ? 'cb-seg-active' : ''}`}
+                                onClick={() => setGstView(val)}
+                            >{label}</button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Output GST */}
+                {gstView === 'OUTPUT' && (
+                    <div className="gst-detail-card">
+                        <h3 className="gst-section-title">📊 Output GST — Collected from Patients</h3>
+                        <div className="report-table-wrapper">
+                            <table className="report-table">
+                                <thead><tr>
+                                    <th>Date</th><th>Invoice #</th><th>Patient</th>
+                                    <th className="text-right">GST Rate</th>
+                                    <th className="text-right">Taxable (₹)</th>
+                                    <th className="text-right">GST Amount (₹)</th>
+                                </tr></thead>
+                                <tbody>
+                                    {outputRows.length === 0 && <tr><td colSpan="6" className="no-data">No output GST transactions found</td></tr>}
+                                    {outputRows.map((r, i) => (
+                                        <tr key={i}>
+                                            <td>{new Date(r.date).toLocaleDateString('en-IN')}</td>
+                                            <td className="highlight">{r.invoice_number}</td>
+                                            <td>{r.party_name}</td>
+                                            <td className="text-right"><span className="gst-rate-badge">{r.gst_rate}%</span></td>
+                                            <td className="text-right">{fc(r.taxable_amount)}</td>
+                                            <td className="text-right gst-out-val bold">{fc(r.gst_amount)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                {outputRows.length > 0 && (
+                                    <tfoot><tr>
+                                        <td colSpan="4"><strong>Total Output GST</strong></td>
+                                        <td className="text-right"><strong>{fc(summary.totalOutputTaxable)}</strong></td>
+                                        <td className="text-right gst-out-val"><strong>{fc(summary.totalOutputGST)}</strong></td>
+                                    </tr></tfoot>
+                                )}
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* Input GST */}
+                {gstView === 'INPUT' && (
+                    <div className="gst-detail-card">
+                        <h3 className="gst-section-title">💰 Input GST — Paid on Purchases</h3>
+                        <div className="report-table-wrapper">
+                            <table className="report-table">
+                                <thead><tr>
+                                    <th>Date</th><th>Invoice #</th><th>Supplier</th>
+                                    <th className="text-right">GST Rate</th>
+                                    <th className="text-right">Taxable (₹)</th>
+                                    <th className="text-right">GST Amount (₹)</th>
+                                </tr></thead>
+                                <tbody>
+                                    {inputRows.length === 0 && <tr><td colSpan="6" className="no-data">No input GST transactions found</td></tr>}
+                                    {inputRows.map((r, i) => (
+                                        <tr key={i}>
+                                            <td>{new Date(r.date).toLocaleDateString('en-IN')}</td>
+                                            <td className="highlight">{r.invoice_number}</td>
+                                            <td>{r.party_name}</td>
+                                            <td className="text-right"><span className="gst-rate-badge gst-rate-in">{r.gst_rate}%</span></td>
+                                            <td className="text-right">{fc(r.taxable_amount)}</td>
+                                            <td className="text-right gst-in-val bold">{fc(r.gst_amount)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                {inputRows.length > 0 && (
+                                    <tfoot><tr>
+                                        <td colSpan="4"><strong>Total Input GST</strong></td>
+                                        <td className="text-right"><strong>{fc(summary.totalInputTaxable)}</strong></td>
+                                        <td className="text-right gst-in-val"><strong>{fc(summary.totalInputGST)}</strong></td>
+                                    </tr></tfoot>
+                                )}
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+
 
     /* ── Sale Report ─────────────────────────────────────────── */
     const renderSaleReport = () => (

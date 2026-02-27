@@ -1,52 +1,141 @@
 const { query } = require('../config/db');
 
 /**
- * Get GST Report
+ * Get GST Report — Output (collected) vs Input (paid) with net liability
  */
 const getGSTReport = async (req, res) => {
     try {
         const tenantId = req.tenantId;
         const { startDate, endDate } = req.query;
 
-        let queryText = `
-            SELECT i.created_at::DATE as date, i.invoice_number, p.name as patient_name,
-                   i.total_amount - i.tax_amount as taxable_amount,
-                   i.tax_amount, i.total_amount,
-                   array_agg(it.gst_percentage) as gst_percentages
-            FROM invoices i
-            JOIN patients p ON i.patient_id = p.id
-            LEFT JOIN invoice_items it ON i.id = it.invoice_id
-            WHERE i.tenant_id = $1
-        `;
-
         const params = [tenantId];
-        let paramCount = 1;
+        let p = 1;
+        let dateFilterInv = '';
+        let dateFilterPur = '';
 
         if (startDate) {
-            paramCount++;
-            queryText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $${paramCount}::date`;
+            p++;
+            dateFilterInv += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $${p}::date`;
+            dateFilterPur += ` AND (pi.purchase_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $${p}::date`;
             params.push(startDate);
         }
-
         if (endDate) {
-            paramCount++;
-            queryText += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $${paramCount}::date`;
+            p++;
+            dateFilterInv += ` AND (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $${p}::date`;
+            dateFilterPur += ` AND (pi.purchase_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $${p}::date`;
             params.push(endDate);
         }
 
-        queryText += ` 
-            GROUP BY i.id, p.id
-            ORDER BY i.created_at DESC
+        // ── 1. Output GST: itemised invoice rows ─────────────────────────
+        const outputSql = `
+            SELECT
+                (i.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date as date,
+                i.invoice_number,
+                p.name as party_name,
+                'OUTPUT' as gst_type,
+                COALESCE(it.gst_percentage, 0) as gst_rate,
+                SUM(it.price)::numeric as taxable_amount,
+                ROUND(SUM(it.price) * COALESCE(it.gst_percentage, 0) / 100, 2)::numeric as gst_amount
+            FROM invoices i
+            JOIN patients p ON i.patient_id = p.id
+            JOIN invoice_items it ON i.id = it.invoice_id
+            WHERE i.tenant_id = $1
+              AND i.tax_amount > 0
+            ${dateFilterInv}
+            GROUP BY i.id, p.name, it.gst_percentage
+            ORDER BY date DESC
         `;
 
-        const result = await query(queryText, params);
-        res.json({ data: result.rows });
+        // ── 2. Input GST: itemised purchase rows ─────────────────────────
+        const inputSql = `
+            SELECT
+                pi.purchase_date as date,
+                pi.invoice_number,
+                pi.supplier_name as party_name,
+                'INPUT' as gst_type,
+                COALESCE(pitem.tax_percentage, 0) as gst_rate,
+                SUM(pitem.quantity * pitem.unit_price)::numeric as taxable_amount,
+                ROUND(SUM(pitem.quantity * pitem.unit_price) * COALESCE(pitem.tax_percentage, 0) / 100, 2)::numeric as gst_amount
+            FROM purchase_invoices pi
+            JOIN purchase_items pitem ON pi.id = pitem.purchase_id
+            WHERE pi.tenant_id = $1
+              AND pi.tax_amount > 0
+            ${dateFilterPur}
+            GROUP BY pi.id, pitem.tax_percentage
+            ORDER BY date DESC
+        `;
+
+        // ── 3. Slab summary ──────────────────────────────────────────────
+        const slabSummarySql = `
+            WITH output_slabs AS (
+                SELECT
+                    COALESCE(it.gst_percentage, 0) as rate,
+                    SUM(it.price) as taxable,
+                    SUM(it.price * COALESCE(it.gst_percentage, 0) / 100) as gst
+                FROM invoices i
+                JOIN invoice_items it ON i.id = it.invoice_id
+                WHERE i.tenant_id = $1 AND i.tax_amount > 0
+                ${dateFilterInv}
+                GROUP BY it.gst_percentage
+            ),
+            input_slabs AS (
+                SELECT
+                    COALESCE(pitem.tax_percentage, 0) as rate,
+                    SUM(pitem.quantity * pitem.unit_price) as taxable,
+                    SUM(pitem.quantity * pitem.unit_price * COALESCE(pitem.tax_percentage, 0) / 100) as gst
+                FROM purchase_invoices pi
+                JOIN purchase_items pitem ON pi.id = pitem.purchase_id
+                WHERE pi.tenant_id = $1 AND pi.tax_amount > 0
+                ${dateFilterPur}
+                GROUP BY pitem.tax_percentage
+            ),
+            all_rates AS (
+                SELECT rate FROM output_slabs
+                UNION
+                SELECT rate FROM input_slabs
+            )
+            SELECT
+                ar.rate,
+                COALESCE(os.taxable, 0) as output_taxable,
+                COALESCE(os.gst, 0)     as output_gst,
+                COALESCE(is2.taxable, 0) as input_taxable,
+                COALESCE(is2.gst, 0)     as input_gst,
+                COALESCE(os.gst, 0) - COALESCE(is2.gst, 0) as net_gst
+            FROM all_rates ar
+            LEFT JOIN output_slabs os  ON ar.rate = os.rate
+            LEFT JOIN input_slabs  is2 ON ar.rate = is2.rate
+            ORDER BY ar.rate
+        `;
+
+        const [outputRes, inputRes, slabRes] = await Promise.all([
+            query(outputSql, params),
+            query(inputSql, params),
+            query(slabSummarySql, params),
+        ]);
+
+        const totalOutputGST = outputRes.rows.reduce((s, r) => s + parseFloat(r.gst_amount || 0), 0);
+        const totalInputGST = inputRes.rows.reduce((s, r) => s + parseFloat(r.gst_amount || 0), 0);
+
+        res.json({
+            outputRows: outputRes.rows,
+            inputRows: inputRes.rows,
+            slabSummary: slabRes.rows,
+            summary: {
+                totalOutputGST,
+                totalInputGST,
+                netLiability: totalOutputGST - totalInputGST,
+                totalOutputTaxable: outputRes.rows.reduce((s, r) => s + parseFloat(r.taxable_amount || 0), 0),
+                totalInputTaxable: inputRes.rows.reduce((s, r) => s + parseFloat(r.taxable_amount || 0), 0),
+            }
+        });
 
     } catch (error) {
         console.error('GST Report error:', error);
         res.status(500).json({ error: 'Failed to fetch GST report' });
     }
 };
+
+
 
 /**
  * Get Double-Column Cash Book Report

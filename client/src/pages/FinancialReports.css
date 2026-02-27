@@ -1027,3 +1027,216 @@
 .cb-save-out:hover {
     background: #b91c1c !important;
 }
+
+/* ============================================================
+   Enhanced GST Report
+   ============================================================ */
+
+.gst-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 0.25rem 0;
+}
+
+/* Summary tiles */
+.gst-summary-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.gst-tile {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-radius: 0.875rem;
+    border: 1.5px solid transparent;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.gst-tile-icon {
+    font-size: 2rem;
+    opacity: 0.85;
+}
+
+.gst-tile-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+}
+
+.gst-tile-value {
+    font-size: 1.35rem;
+    font-weight: 800;
+}
+
+.gst-tile-sub {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-top: 0.2rem;
+}
+
+.gst-tile-out {
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border-color: #93c5fd;
+}
+
+.gst-tile-out .gst-tile-value {
+    color: #1d4ed8;
+}
+
+.gst-tile-in {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #86efac;
+}
+
+.gst-tile-in .gst-tile-value {
+    color: #15803d;
+}
+
+.gst-tile-liability {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border-color: #fdba74;
+}
+
+.gst-tile-liability .gst-tile-value {
+    color: #c2410c;
+}
+
+.gst-tile-refund {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #4ade80;
+}
+
+.gst-tile-refund .gst-tile-value {
+    color: #15803d;
+}
+
+/* Slab card */
+.gst-slab-card,
+.gst-detail-card {
+    background: white;
+    border-radius: 0.75rem;
+    border: 1px solid #e2e8f0;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.gst-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* Slab table column group headers */
+.gst-slab-table .gst-th-slab {
+    background: #f8fafc;
+    color: #475569;
+    text-align: left;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+.gst-slab-table .gst-th-out {
+    background: #eff6ff;
+    color: #1d4ed8;
+    text-align: center;
+    font-size: 0.8rem;
+    border-left: 2px solid #bfdbfe;
+}
+
+.gst-slab-table .gst-th-in {
+    background: #f0fdf4;
+    color: #15803d;
+    text-align: center;
+    font-size: 0.8rem;
+    border-left: 2px solid #86efac;
+}
+
+.gst-slab-table .gst-th-net {
+    background: #fff7ed;
+    color: #c2410c;
+    text-align: right;
+    font-size: 0.8rem;
+    border-left: 2px solid #fdba74;
+}
+
+.gst-th-sub-row th {
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+/* GST value colour-coded cells */
+.gst-out-val {
+    color: #1d4ed8 !important;
+    font-weight: 600;
+}
+
+.gst-in-val {
+    color: #15803d !important;
+    font-weight: 600;
+}
+
+.gst-net-positive {
+    color: #c2410c !important;
+}
+
+/* GST rate badge */
+.gst-rate-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.gst-rate-in {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+/* View bar */
+.gst-view-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.gst-view-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+/* No slab message */
+.gst-no-slab {
+    text-align: center;
+    padding: 2rem;
+    color: #94a3b8;
+    font-size: 0.875rem;
+    background: #f8fafc;
+    border-radius: 0.5rem;
+    border: 1px dashed #e2e8f0;
+}
+
+/* Utility */
+.text-right {
+    text-align: right;
+}
+
+.bold {
+    font-weight: 700;
+}
