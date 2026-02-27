@@ -102,6 +102,7 @@ CREATE TABLE tests (
     normal_range_female TEXT,
     unit VARCHAR(20),
     sample_type VARCHAR(50), -- Blood, Urine, etc.
+    gst_percentage DECIMAL(5,2) DEFAULT 0.00,
     is_profile BOOLEAN DEFAULT FALSE -- Support for grouped tests/panels
 );
 
