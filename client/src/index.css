@@ -117,6 +117,50 @@
 }
 
 /* ===========================
+   Dark Mode Theme
+   =========================== */
+[data-theme="dark"] {
+    --surface: #1e293b;
+    --surface-raised: #253347;
+    --surface-overlay: #1e293b;
+    --bg: #0f172a;
+    --bg-subtle: #1e293b;
+
+    --border: #334155;
+    --border-strong: #475569;
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --gray-0: #1e293b;
+    --gray-50: #1e293b;
+    --gray-100: #253347;
+    --gray-150: #2d3f55;
+    --gray-200: #334155;
+    --gray-300: #475569;
+    --gray-400: #64748b;
+    --gray-500: #94a3b8;
+
+    --success-bg: #064e3b;
+    --success-text: #6ee7b7;
+    --danger-bg: #450a0a;
+    --danger-text: #fca5a5;
+    --warning-bg: #451a03;
+    --warning-text: #fcd34d;
+    --info-bg: #1e3a8a;
+    --info-text: #93c5fd;
+
+    color-scheme: dark;
+}
+
+[data-theme="dark"] body {
+    background-color: var(--bg);
+    color: var(--text-primary);
+}
+
+
+/* ===========================
    Reset & Base
    =========================== */
 *,
@@ -1088,7 +1132,6 @@ a:hover {
 }
 
 /* Quick actions */
-.quick-card {}
 
 .quick-grid {
     display: grid;

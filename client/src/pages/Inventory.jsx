@@ -11,6 +11,21 @@ const Inventory = () => {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    const handleExportInventory = () => {
+        exportToCSV('inventory', items, [
+            { key: 'name', label: 'Item Name' },
+            { key: 'category', label: 'Category' },
+            { key: 'quantity', label: 'Stock' },
+            { key: 'unit', label: 'Unit' },
+            { key: 'reorder_level', label: 'Reorder Level' },
+            { key: 'batch_number', label: 'Batch #' },
+            { key: 'expiry_date', label: 'Expiry Date' },
+            { key: 'supplier', label: 'Supplier' },
+            { key: 'cost_per_unit', label: 'Cost/Unit' },
+        ]);
+        toast.success(`Exported ${items.length} items to CSV`);
+    };
     const [showForm, setShowForm] = useState(false);
     const [editingItem, setEditingItem] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -270,6 +285,14 @@ const Inventory = () => {
                     <p>Track stock levels, expiry dates, and reorder points</p>
                 </div>
                 <div className="header-actions">
+                    <button
+                        className="btn-export"
+                        onClick={handleExportInventory}
+                        disabled={items.length === 0}
+                        title="Export inventory to CSV"
+                    >
+                        📥 Export CSV
+                    </button>
                     <button
                         className="btn-secondary"
                         onClick={() => handleViewLogs()}

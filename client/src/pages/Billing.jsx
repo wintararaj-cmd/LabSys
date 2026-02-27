@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoiceAPI, patientAPI, testAPI, doctorAPI, introducerAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
+import { exportToCSV } from '../utils/exportCSV';
 import './Billing.css';
 
 // Helper: returns today's date as YYYY-MM-DD in local time
@@ -11,6 +13,7 @@ const todayStr = () => {
 
 function Billing() {
     const toast = useToast();
+    const confirm = useConfirm();
     const [invoices, setInvoices] = useState([]);
     const [patients, setPatients] = useState([]);
     const [tests, setTests] = useState([]);
@@ -1153,8 +1156,26 @@ function Billing() {
                 </div>
 
                 {/* ── Invoice Table ───────────────────────────── */}
-                <h3 className="card-header" style={{ borderTop: '1px solid var(--gray-200)', marginTop: 0, paddingTop: 16 }}>
-                    {filterApplied ? 'Search Results' : "Today's Invoices"}
+                <h3 className="card-header" style={{ borderTop: '1px solid var(--gray-200)', marginTop: 0, paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{filterApplied ? 'Search Results' : "Today's Invoices"}</span>
+                    <button
+                        className="btn-export"
+                        onClick={() => exportToCSV('invoices', invoices, [
+                            { key: 'invoice_number', label: 'Invoice #' },
+                            { key: 'patient_name', label: 'Patient' },
+                            { key: 'created_at', label: 'Date' },
+                            { key: 'net_amount', label: 'Net Amount' },
+                            { key: 'paid_amount', label: 'Paid' },
+                            { key: 'balance_amount', label: 'Balance' },
+                            { key: 'payment_status', label: 'Status' },
+                            { key: 'payment_mode', label: 'Mode' },
+                            { key: 'doctor_name', label: 'Doctor' },
+                        ])}
+                        disabled={invoices.length === 0}
+                        title="Export to Excel/CSV"
+                    >
+                        📥 Export CSV
+                    </button>
                 </h3>
                 {loading ? (
                     <div className="loading">

@@ -123,19 +123,49 @@ function Patients() {
         setCurrentPage(1);
     };
 
+    const handleExport = async () => {
+        try {
+            // Fetch all patients (no pagination) for export
+            const res = await patientAPI.getAll({ limit: 10000, search: searchTerm });
+            const all = res.data.patients || [];
+            exportToCSV('patients', all, [
+                { key: 'uhid', label: 'UHID' },
+                { key: 'name', label: 'Name' },
+                { key: 'age', label: 'Age' },
+                { key: 'gender', label: 'Gender' },
+                { key: 'phone', label: 'Phone' },
+                { key: 'email', label: 'Email' },
+                { key: 'address', label: 'Address' },
+                { key: 'created_at', label: 'Registered On' },
+            ]);
+            toast.success(`Exported ${all.length} patients to CSV`);
+        } catch {
+            toast.error('Failed to export patients');
+        }
+    };
+
     return (
         <div className="patients-container">
             <div className="page-header">
                 <h1 className="page-title">Patient Management</h1>
-                <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                        if (showForm) resetForm();
-                        else setShowForm(true);
-                    }}
-                >
-                    {showForm ? '✕ Cancel' : '➕ New Patient'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <button
+                        className="btn-export"
+                        onClick={handleExport}
+                        title="Export all patients to CSV"
+                    >
+                        📥 Export CSV
+                    </button>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                            if (showForm) resetForm();
+                            else setShowForm(true);
+                        }}
+                    >
+                        {showForm ? '✕ Cancel' : '➕ New Patient'}
+                    </button>
+                </div>
             </div>
 
             {/* Registration Form */}

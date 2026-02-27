@@ -5,18 +5,21 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
+import { DarkModeProvider } from './context/DarkModeContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <AuthProvider>
-                <ToastProvider>
-                    <ConfirmProvider>
-                        <App />
-                    </ConfirmProvider>
-                </ToastProvider>
-            </AuthProvider>
+            <DarkModeProvider>
+                <AuthProvider>
+                    <ToastProvider>
+                        <ConfirmProvider>
+                            <App />
+                        </ConfirmProvider>
+                    </ToastProvider>
+                </AuthProvider>
+            </DarkModeProvider>
         </BrowserRouter>
     </React.StrictMode>
 );

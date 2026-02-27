@@ -1,6 +1,8 @@
 import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useDarkMode } from '../context/DarkModeContext';
+import GlobalSearch from './GlobalSearch';
 import './Layout.css';
 
 const NAV_SECTIONS = [
@@ -45,6 +47,7 @@ const ADMIN_SECTION = {
 
 function Layout() {
     const { user, logout } = useAuth();
+    const { dark, toggle } = useDarkMode();
 
     return (
         <div className="layout">
@@ -52,11 +55,26 @@ function Layout() {
             <aside className="sidebar">
                 {/* Header */}
                 <div className="sidebar-header">
-                    <div className="sidebar-logo">
-                        <div className="sidebar-logo-icon">🧪</div>
-                        <span className="sidebar-logo-text">LabSys</span>
+                    <div className="sidebar-logo-row">
+                        <div className="sidebar-logo">
+                            <div className="sidebar-logo-icon">🧪</div>
+                            <span className="sidebar-logo-text">LabSys</span>
+                        </div>
+                        <button
+                            className="dark-toggle-btn"
+                            onClick={toggle}
+                            title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                            aria-label="Toggle dark mode"
+                        >
+                            {dark ? '☀️' : '🌙'}
+                        </button>
                     </div>
                     <div className="sidebar-tenant">{user?.tenantName || 'Lab Management'}</div>
+                </div>
+
+                {/* Global Search */}
+                <div className="sidebar-search-wrap">
+                    <GlobalSearch />
                 </div>
 
                 {/* Navigation */}
