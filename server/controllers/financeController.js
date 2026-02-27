@@ -162,18 +162,19 @@ const getCashBook = async (req, res) => {
             params.push(endDate);
         }
 
-        // Date filter for non-created_at columns (purchase_invoices, doctor_payouts)
+        // Date filter for purchase_invoices — purchase_date is a plain DATE column,
+        // so no timezone conversion is needed (and would cause a Postgres error).
         let dateFilterPurchase = '';
         let paramsForPurchase = [tenantId];
         let pNum = 1;
         if (startDate) {
             pNum++;
-            dateFilterPurchase += ` AND (purchase_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date >= $${pNum}::date`;
+            dateFilterPurchase += ` AND purchase_date >= $${pNum}::date`;
             paramsForPurchase.push(startDate);
         }
         if (endDate) {
             pNum++;
-            dateFilterPurchase += ` AND (purchase_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')::date <= $${pNum}::date`;
+            dateFilterPurchase += ` AND purchase_date <= $${pNum}::date`;
             paramsForPurchase.push(endDate);
         }
 
