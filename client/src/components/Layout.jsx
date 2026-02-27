@@ -3,6 +3,7 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../context/DarkModeContext';
 import GlobalSearch from './GlobalSearch';
+import KeyboardShortcuts from './KeyboardShortcuts';
 import './Layout.css';
 
 const NAV_SECTIONS = [
@@ -126,6 +127,7 @@ function Layout() {
                             <div className="user-role">{user?.role}</div>
                         </div>
                     </div>
+                    <KeyboardShortcuts />
                     <button onClick={logout} className="sidebar-logout-btn" id="sidebar-logout-btn">
                         <span>⏻</span> Logout
                     </button>

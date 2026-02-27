@@ -40,8 +40,21 @@ function Patients() {
             }
         };
         window.addEventListener('keydown', handleEsc);
-        return () => window.removeEventListener('keydown', handleEsc);
+
+        // Global keyboard shortcut listeners
+        const onRefresh = () => loadPatients();
+        const onExport = () => handleExport();
+        window.addEventListener('labsys:refresh', onRefresh);
+        window.addEventListener('labsys:export', onExport);
+
+        return () => {
+            window.removeEventListener('keydown', handleEsc);
+            window.removeEventListener('labsys:refresh', onRefresh);
+            window.removeEventListener('labsys:export', onExport);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
 
     const loadPatients = async () => {
         try {
