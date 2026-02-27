@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../context/DarkModeContext';
+import { useBadges } from '../context/BadgeContext';
 import GlobalSearch from './GlobalSearch';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import './Layout.css';
@@ -49,6 +50,7 @@ const ADMIN_SECTION = {
 function Layout() {
     const { user, logout } = useAuth();
     const { dark, toggle } = useDarkMode();
+    const { badges } = useBadges();
 
     return (
         <div className="layout">
@@ -93,6 +95,16 @@ function Layout() {
                                 >
                                     <span className="nav-link-icon">{item.icon}</span>
                                     <span className="nav-link-label">{item.label}</span>
+                                    {item.to === '/reports' && badges.pendingReports > 0 && (
+                                        <span className="nav-badge" title={`${badges.pendingReports} pending reports`}>
+                                            {badges.pendingReports > 99 ? '99+' : badges.pendingReports}
+                                        </span>
+                                    )}
+                                    {item.to === '/inventory' && badges.lowStock > 0 && (
+                                        <span className="nav-badge warn" title={`${badges.lowStock} low stock alerts`}>
+                                            {badges.lowStock > 99 ? '99+' : badges.lowStock}
+                                        </span>
+                                    )}
                                 </NavLink>
                             ))}
                             <div className="nav-divider" />

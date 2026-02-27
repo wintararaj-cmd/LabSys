@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { DarkModeProvider } from './context/DarkModeContext';
+import { BadgeProvider } from './context/BadgeContext';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -13,11 +14,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <DarkModeProvider>
                 <AuthProvider>
-                    <ToastProvider>
-                        <ConfirmProvider>
-                            <App />
-                        </ConfirmProvider>
-                    </ToastProvider>
+                    <BadgeProvider>
+                        <ToastProvider>
+                            <ConfirmProvider>
+                                <App />
+                            </ConfirmProvider>
+                        </ToastProvider>
+                    </BadgeProvider>
                 </AuthProvider>
             </DarkModeProvider>
         </BrowserRouter>
