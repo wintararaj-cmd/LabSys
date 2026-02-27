@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { patientAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Patients.css';
 
 function Patients() {
+    const toast = useToast();
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -62,16 +64,16 @@ function Patients() {
         try {
             if (editingPatient) {
                 await patientAPI.update(editingPatient.id, formData);
-                alert('Patient details updated successfully!');
+                toast.success('Patient details updated successfully!');
             } else {
                 await patientAPI.create(formData);
-                alert('Patient registered successfully!');
+                toast.success('Patient registered successfully!');
             }
 
             resetForm();
             loadPatients();
         } catch (err) {
-            alert('Operation failed: ' + (err.response?.data?.error || err.message));
+            toast.error('Operation failed: ' + (err.response?.data?.error || err.message));
         }
     };
 

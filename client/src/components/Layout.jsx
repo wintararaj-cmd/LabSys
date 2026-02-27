@@ -3,6 +3,46 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Layout.css';
 
+const NAV_SECTIONS = [
+    {
+        label: 'Core',
+        items: [
+            { to: '/', icon: '📊', label: 'Dashboard', end: true },
+            { to: '/billing', icon: '💰', label: 'Billing' },
+            { to: '/reports', icon: '📄', label: 'Reports' },
+            { to: '/radiology', icon: '⚡', label: 'Radiology' },
+            { to: '/patients', icon: '🧑‍⚕️', label: 'Patients' },
+        ],
+    },
+    {
+        label: 'Management',
+        items: [
+            { to: '/tests', icon: '🧪', label: 'Test Master' },
+            { to: '/doctors', icon: '👨‍⚕️', label: 'Doctors' },
+            { to: '/introducers', icon: '🤝', label: 'Introducers' },
+            { to: '/inventory', icon: '📦', label: 'Inventory' },
+            { to: '/purchases', icon: '📥', label: 'Purchases' },
+            { to: '/external-labs', icon: '🔬', label: 'External Labs' },
+            { to: '/sample-tracking', icon: '🔍', label: 'Sample Tracking' },
+        ],
+    },
+    {
+        label: 'Finance',
+        items: [
+            { to: '/finance', icon: '📈', label: 'Financial Reports' },
+        ],
+    },
+];
+
+const ADMIN_SECTION = {
+    label: 'Admin',
+    items: [
+        { to: '/branches', icon: '🏢', label: 'Branches & Staff' },
+        { to: '/settings', icon: '⚙️', label: 'Settings' },
+        { to: '/audit-log', icon: '🔍', label: 'Audit Trail' },
+    ],
+};
+
 function Layout() {
     const { user, logout } = useAuth();
 
@@ -10,74 +50,66 @@ function Layout() {
         <div className="layout">
             {/* Sidebar */}
             <aside className="sidebar">
+                {/* Header */}
                 <div className="sidebar-header">
-                    <h2>🧪 LabSys</h2>
-                    <p>{user?.tenantName || 'Lab Management'}</p>
+                    <div className="sidebar-logo">
+                        <div className="sidebar-logo-icon">🧪</div>
+                        <span className="sidebar-logo-text">LabSys</span>
+                    </div>
+                    <div className="sidebar-tenant">{user?.tenantName || 'Lab Management'}</div>
                 </div>
 
-                <nav className="sidebar-nav">
-                    <NavLink to="/" end className="nav-link">
-                        <span>📊</span> Dashboard
-                    </NavLink>
-                    <NavLink to="/billing" className="nav-link">
-                        <span>💰</span> Billing
-                    </NavLink>
-                    <NavLink to="/reports" className="nav-link">
-                        <span>📄</span> Reports
-                    </NavLink>
-                    <NavLink to="/radiology" className="nav-link">
-                        <span>⚡</span> Radiology
-                    </NavLink>
+                {/* Navigation */}
+                <nav className="sidebar-nav" aria-label="Main navigation">
+                    {NAV_SECTIONS.map((section) => (
+                        <React.Fragment key={section.label}>
+                            <div className="nav-group-label">{section.label}</div>
+                            {section.items.map((item) => (
+                                <NavLink
+                                    key={item.to}
+                                    to={item.to}
+                                    end={item.end}
+                                    className="nav-link"
+                                    aria-label={item.label}
+                                >
+                                    <span className="nav-link-icon">{item.icon}</span>
+                                    <span className="nav-link-label">{item.label}</span>
+                                </NavLink>
+                            ))}
+                            <div className="nav-divider" />
+                        </React.Fragment>
+                    ))}
 
-                    <NavLink to="/finance" className="nav-link">
-                        <span>💰</span> Finance
-                    </NavLink>
-                    <NavLink to="/tests" className="nav-link">
-                        <span>🧪</span> Test Master
-                    </NavLink>
-                    <NavLink to="/doctors" className="nav-link">
-                        <span>👨‍⚕️</span> Doctors
-                    </NavLink>
-                    <NavLink to="/introducers" className="nav-link">
-                        <span>🤝</span> Introducers
-                    </NavLink>
-                    <NavLink to="/inventory" className="nav-link">
-                        <span>📦</span> Inventory
-                    </NavLink>
-                    <NavLink to="/purchases" className="nav-link">
-                        <span>📥</span> Purchases
-                    </NavLink>
-                    <NavLink to="/external-labs" className="nav-link">
-                        <span>🔬</span> External Labs
-                    </NavLink>
-                    <NavLink to="/sample-tracking" className="nav-link">
-                        <span>🔍</span> Sample Tracking
-                    </NavLink>
+                    {/* Admin-only section */}
                     {user?.role === 'ADMIN' && (
                         <>
-                            <NavLink to="/branches" className="nav-link">
-                                <span>🏢</span> Branches & Staff
-                            </NavLink>
-                            <NavLink to="/settings" className="nav-link">
-                                <span>⚙️</span> Settings
-                            </NavLink>
-                            <NavLink to="/audit-log" className="nav-link">
-                                <span>🔍</span> Audit Trail
-                            </NavLink>
+                            <div className="nav-group-label">{ADMIN_SECTION.label}</div>
+                            {ADMIN_SECTION.items.map((item) => (
+                                <NavLink
+                                    key={item.to}
+                                    to={item.to}
+                                    className="nav-link"
+                                    aria-label={item.label}
+                                >
+                                    <span className="nav-link-icon">{item.icon}</span>
+                                    <span className="nav-link-label">{item.label}</span>
+                                </NavLink>
+                            ))}
                         </>
                     )}
                 </nav>
 
+                {/* Footer */}
                 <div className="sidebar-footer">
-                    <div className="user-info">
+                    <div className="user-card">
                         <div className="user-avatar">{user?.name?.charAt(0) || 'U'}</div>
-                        <div>
+                        <div className="user-details">
                             <div className="user-name">{user?.name}</div>
                             <div className="user-role">{user?.role}</div>
                         </div>
                     </div>
-                    <button onClick={logout} className="btn btn-secondary btn-sm">
-                        Logout
+                    <button onClick={logout} className="sidebar-logout-btn" id="sidebar-logout-btn">
+                        <span>⏻</span> Logout
                     </button>
                 </div>
             </aside>

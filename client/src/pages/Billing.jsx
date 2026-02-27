@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoiceAPI, patientAPI, testAPI, doctorAPI, introducerAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Billing.css';
 
 // Helper: returns today's date as YYYY-MM-DD in local time
@@ -9,6 +10,7 @@ const todayStr = () => {
 };
 
 function Billing() {
+    const toast = useToast();
     const [invoices, setInvoices] = useState([]);
     const [patients, setPatients] = useState([]);
     const [tests, setTests] = useState([]);
@@ -255,9 +257,9 @@ function Billing() {
             handleSelectPatient(registeredPatient);
             setShowPatientModal(false);
             setNewPatient({ name: '', age: '', gender: 'Male', phone: '', address: '' });
-            alert('Patient registered and selected successfully!');
+            toast.success('Patient registered and selected successfully!');
         } catch (err) {
-            alert('Registration failed: ' + (err.response?.data?.error || err.message));
+            toast.error('Registration failed: ' + (err.response?.data?.error || err.message));
         }
     };
 
@@ -325,7 +327,7 @@ function Billing() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
             console.error('Failed to load invoice for editing:', err);
-            alert('Failed to load invoice for editing');
+            toast.error('Failed to load invoice for editing');
         } finally {
             setLoading(false);
         }
@@ -335,25 +337,25 @@ function Billing() {
         e.preventDefault();
 
         if (!formData.patient_id) {
-            alert('Please select a patient');
+            toast.warning('Please select a patient');
             return;
         }
         if (!formData.doctor_id) {
-            alert('Referring Doctor is mandatory. Please select a doctor.');
+            toast.warning('Referring Doctor is mandatory. Please select a doctor.');
             return;
         }
         if (formData.selectedTests.length === 0) {
-            alert('Please select at least one test');
+            toast.warning('Please select at least one test');
             return;
         }
 
         const paid = parseFloat(formData.paid_amount) || 0;
         if (paid < 0) {
-            alert('Amount Paid cannot be less than 0');
+            toast.warning('Amount Paid cannot be less than 0');
             return;
         }
         if (paid > calculations.net_amount) {
-            alert(`Amount Paid cannot exceed the Net Amount (₹${calculations.net_amount.toFixed(2)})`);
+            toast.warning(`Amount Paid cannot exceed the Net Amount (₹${calculations.net_amount.toFixed(2)})`);
             return;
         }
 
@@ -377,10 +379,10 @@ function Billing() {
 
             if (editMode && editingInvoiceId) {
                 await invoiceAPI.update(editingInvoiceId, invoiceData);
-                alert('Invoice updated successfully!');
+                toast.success('Invoice updated successfully!');
             } else {
                 await invoiceAPI.create(invoiceData);
-                alert('Invoice created successfully!');
+                toast.success('Invoice created successfully!');
             }
 
             setShowForm(false);
@@ -388,7 +390,7 @@ function Billing() {
             loadData();
             loadPreviousDues();
         } catch (err) {
-            alert('Failed to create invoice: ' + (err.response?.data?.error || err.message));
+            toast.error('Failed to create invoice: ' + (err.response?.data?.error || err.message));
         }
     };
 
@@ -475,7 +477,7 @@ function Billing() {
             setShowViewModal(true);
         } catch (err) {
             console.error('Failed to fetch invoice details:', err);
-            alert('Failed to load invoice details');
+            toast.error('Failed to load invoice details');
         } finally {
             setLoading(false);
         }
@@ -497,11 +499,11 @@ function Billing() {
         const paid = parseFloat(paymentData.paidAmount) || 0;
         const bal = parseFloat(paymentData.balanceAmount) || 0;
         if (paid < 0) {
-            alert('Paid amount cannot be less than 0');
+            toast.warning('Paid amount cannot be less than 0');
             return;
         }
         if (paid > bal) {
-            alert(`Paid amount cannot exceed the Balance Amount (₹${bal.toFixed(2)})`);
+            toast.warning(`Paid amount cannot exceed the Balance Amount (₹${bal.toFixed(2)})`);
             return;
         }
 
@@ -510,13 +512,13 @@ function Billing() {
                 paidAmount: paymentData.paidAmount,
                 paymentMode: paymentData.paymentMode
             });
-            alert('Payment updated successfully');
+            toast.success('Payment updated successfully');
             setShowPaymentModal(false);
             loadData();
             loadPreviousDues();
         } catch (err) {
             console.error('Failed to update payment:', err);
-            alert('Failed to update payment');
+            toast.error('Failed to update payment');
         }
     };
 
@@ -538,13 +540,13 @@ function Billing() {
                 refundAmount: refundData.refundAmount,
                 refundNote: refundData.refundNote
             });
-            alert('Refund processed successfully');
+            toast.success('Refund processed successfully');
             setShowRefundModal(false);
             loadData();
             loadPreviousDues();
         } catch (err) {
             console.error('Failed to process refund:', err);
-            alert('Failed to process refund: ' + (err.response?.data?.error || err.message));
+            toast.error('Failed to process refund: ' + (err.response?.data?.error || err.message));
         }
     };
 
@@ -577,7 +579,7 @@ function Billing() {
         } catch (err) {
             console.error('Failed to download PDF:', err);
             const errorMessage = err.response?.data?.details || err.response?.data?.error || err.message || 'Unknown error';
-            alert(`Failed to download invoice PDF. Error: ${errorMessage}\n\nPlease check if the backend server was restarted.`);
+            toast.error(`Failed to download invoice PDF: ${errorMessage}`);
         }
     };
 

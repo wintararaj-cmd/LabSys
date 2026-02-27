@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { testAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Tests.css';
 
 function Tests() {
+    const toast = useToast();
     const [tests, setTests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -50,15 +52,15 @@ function Tests() {
         try {
             if (editingTest) {
                 await testAPI.update(editingTest.id, formData);
-                alert('Test updated successfully!');
+                toast.success('Test updated successfully!');
             } else {
                 await testAPI.create(formData);
-                alert('Test added successfully!');
+                toast.success('Test added successfully!');
             }
             resetForm();
             loadTests();
         } catch (err) {
-            alert('Failed to save test: ' + (err.response?.data?.error || err.message));
+            toast.error('Failed to save test: ' + (err.response?.data?.error || err.message));
         }
     };
 
@@ -90,10 +92,10 @@ function Tests() {
 
         try {
             await testAPI.delete(testId);
-            alert('Test deleted successfully!');
+            toast.success('Test deleted successfully!');
             loadTests();
         } catch (err) {
-            alert('Failed to delete test: ' + (err.response?.data?.error || err.message));
+            toast.error('Failed to delete test: ' + (err.response?.data?.error || err.message));
         }
     };
 

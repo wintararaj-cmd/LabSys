@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Reports.css';
 import BarcodeLabel from '../components/BarcodeLabel';
 import ReactDOM from 'react-dom';
 
 const Reports = () => {
+    const toast = useToast();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -123,7 +125,7 @@ const Reports = () => {
                 { results }
             );
 
-            alert('Results saved successfully!');
+            toast.success('Results saved successfully!');
             fetchReports();
             setShowResultForm(false);
             setSelectedReport(null);
@@ -145,7 +147,7 @@ const Reports = () => {
                 { verification_note: verificationNote }
             );
 
-            alert('Report verified successfully!');
+            toast.success('Report verified successfully!');
             fetchReports();
             setShowResultForm(false);
             setSelectedReport(null);
@@ -200,7 +202,7 @@ const Reports = () => {
 
     const handleSaveOutbound = async () => {
         if (selectedReportIds.length === 0) {
-            alert('Please select at least one sample');
+            toast.warning('Please select at least one sample');
             return;
         }
 
@@ -211,10 +213,10 @@ const Reports = () => {
             });
             setShowOutboundModal(false);
             fetchReports();
-            alert('Outbound status updated!');
+            toast.success('Outbound status updated!');
         } catch (err) {
             console.error('Failed to update outbound status', err);
-            alert('Failed to update status');
+            toast.error('Failed to update status');
         }
     };
 

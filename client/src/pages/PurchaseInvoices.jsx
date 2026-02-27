@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { purchaseAPI, inventoryAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './PurchaseInvoices.css';
 
 const PurchaseInvoices = () => {
+    const toast = useToast();
     const [purchases, setPurchases] = useState([]);
     const [inventory, setInventory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -88,10 +90,10 @@ const PurchaseInvoices = () => {
         try {
             if (isEditing) {
                 await purchaseAPI.update(formData.id, formData);
-                alert('Purchase invoice updated successfully!');
+                toast.success('Purchase invoice updated successfully!');
             } else {
                 await purchaseAPI.create(formData);
-                alert('Purchase invoice recorded successfully!');
+                toast.success('Purchase invoice recorded successfully!');
             }
             closeModal();
             fetchData();
@@ -124,7 +126,7 @@ const PurchaseInvoices = () => {
             setIsEditing(true);
             setShowModal(true);
         } catch (err) {
-            alert('Failed to load purchase for editing');
+            toast.error('Failed to load purchase for editing');
         }
     };
 
@@ -132,10 +134,10 @@ const PurchaseInvoices = () => {
         if (!window.confirm('Are you sure you want to delete this purchase? Stock will be reversed.')) return;
         try {
             await purchaseAPI.delete(id);
-            alert('Purchase deleted and stock reversed');
+            toast.success('Purchase deleted and stock reversed');
             fetchData();
         } catch (err) {
-            alert('Failed to delete purchase');
+            toast.error('Failed to delete purchase');
         }
     };
 
@@ -144,7 +146,7 @@ const PurchaseInvoices = () => {
             const response = await purchaseAPI.getById(id);
             setViewPurchase(response.data);
         } catch (err) {
-            alert('Failed to load details');
+            toast.error('Failed to load details');
         }
     };
 

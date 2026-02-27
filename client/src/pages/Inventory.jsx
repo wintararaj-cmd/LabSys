@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { inventoryAPI, branchAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Inventory.css';
 
 const Inventory = () => {
+    const toast = useToast();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -95,10 +97,10 @@ const Inventory = () => {
         try {
             if (editingItem) {
                 await inventoryAPI.update(editingItem.id, formData);
-                alert('Item updated successfully!');
+                toast.success('Item updated successfully!');
             } else {
                 await inventoryAPI.create(formData);
-                alert('Item added successfully!');
+                toast.success('Item added successfully!');
             }
 
             resetForm();
@@ -134,7 +136,7 @@ const Inventory = () => {
 
         try {
             await inventoryAPI.delete(itemId);
-            alert('Item deleted successfully!');
+            toast.success('Item deleted successfully!');
             fetchItems();
         } catch (err) {
             setError(err.response?.data?.error || 'Failed to delete item');
@@ -182,7 +184,7 @@ const Inventory = () => {
             });
             setShowAdjustModal(false);
             fetchItems();
-            alert('Stock adjusted successfully!');
+            toast.success('Stock adjusted successfully!');
         } catch (err) {
             setError(err.response?.data?.error || 'Failed to adjust stock');
         }

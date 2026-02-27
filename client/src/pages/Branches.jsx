@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { branchAPI, userAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Branches.css';
 
 const MODULES = [
@@ -19,6 +20,7 @@ const MODULES = [
 ];
 
 const Branches = () => {
+    const toast = useToast();
     const [branches, setBranches] = useState([]);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ const Branches = () => {
             setUsers(userRes.data.users || []);
         } catch (error) {
             console.error('Failed to fetch data:', error);
-            alert('Failed to load branches and staff.');
+            toast.error('Failed to load branches and staff.');
         } finally {
             setLoading(false);
         }
@@ -72,12 +74,12 @@ const Branches = () => {
         e.preventDefault();
         try {
             await branchAPI.create(branchForm);
-            alert('Branch created successfully!');
+            toast.success('Branch created successfully!');
             setBranchForm({ name: '', address: '', phone: '' });
             setShowBranchForm(false);
             fetchData();
         } catch (error) {
-            alert(error.response?.data?.error || 'Failed to create branch');
+            toast.error(error.response?.data?.error || 'Failed to create branch');
         }
     };
 
@@ -86,17 +88,17 @@ const Branches = () => {
         try {
             if (editingUser) {
                 await userAPI.update(editingUser.id, userForm);
-                alert('User updated successfully!');
+                toast.success('User updated successfully!');
             } else {
                 await userAPI.create(userForm);
-                alert('User created successfully!');
+                toast.success('User created successfully!');
             }
             setUserForm({ name: '', email: '', password: '', role: 'TECHNICIAN', branchId: '', canView: true, canCreate: true, canUpdate: true, modulePermissions: {} });
             setShowUserForm(false);
             setEditingUser(null);
             fetchData();
         } catch (error) {
-            alert(error.response?.data?.error || 'Failed to save user');
+            toast.error(error.response?.data?.error || 'Failed to save user');
         }
     };
 
@@ -105,7 +107,7 @@ const Branches = () => {
         setUserForm({
             name: user.name,
             email: user.email,
-            password: '', 
+            password: '',
             role: user.role,
             branchId: user.branch_id || '',
             canView: user.can_view ?? true,
@@ -122,7 +124,7 @@ const Branches = () => {
             await userAPI.toggleStatus(id);
             fetchData();
         } catch (error) {
-            alert(error.response?.data?.error || 'Failed to update user status');
+            toast.error(error.response?.data?.error || 'Failed to update user status');
         }
     };
 

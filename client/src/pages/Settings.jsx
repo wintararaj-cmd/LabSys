@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { backupAPI, authAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import './Settings.css';
 
 const Settings = () => {
     const { user, logout } = useAuth();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState('lab');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
@@ -142,7 +144,10 @@ const Settings = () => {
     };
 
     const handleTestSend = async () => {
-        if (!testPhone) return alert('Enter a test phone number first.');
+        if (!testPhone) {
+            toast.warning('Enter a test phone number first.');
+            return;
+        }
         try {
             setNotifLoading(true);
             await api.post('/notifications/test-send', { phone: testPhone, channel: testChannel });

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import './Radiology.css';
 
 const Radiology = () => {
+    const toast = useToast();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
@@ -76,7 +78,7 @@ const Radiology = () => {
                 isFinal,
                 templateId: selectedTemplate
             });
-            alert(isFinal ? 'Report finalized and locked!' : 'Report saved as draft.');
+            toast.success(isFinal ? 'Report finalized and locked!' : 'Report saved as draft.');
             setShowEditModal(false);
             fetchReports();
         } catch (err) {

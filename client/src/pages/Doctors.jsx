@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Doctors.css';
 
 const Doctors = () => {
+    const toast = useToast();
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -60,10 +62,10 @@ const Doctors = () => {
         try {
             if (editingDoctor) {
                 await api.put(`/doctors/${editingDoctor.id}`, formData);
-                alert('Doctor updated successfully!');
+                toast.success('Doctor updated successfully!');
             } else {
                 await api.post('/doctors', formData);
-                alert('Doctor added successfully!');
+                toast.success('Doctor added successfully!');
             }
 
             resetForm();
@@ -98,7 +100,7 @@ const Doctors = () => {
 
         try {
             await api.delete(`/doctors/${doctorId}`);
-            alert('Doctor deleted successfully!');
+            toast.success('Doctor deleted successfully!');
             fetchDoctors();
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to delete doctor');
@@ -152,7 +154,7 @@ const Doctors = () => {
         try {
             await api.post(`/doctors/${selectedDoctor.id}/payout`, payoutForm);
 
-            alert('Payout recorded successfully!');
+            toast.success('Payout recorded successfully!');
 
             // Refresh data
             setPayoutForm({
@@ -166,7 +168,7 @@ const Doctors = () => {
             setActiveTab('OVERVIEW');
 
         } catch (err) {
-            alert(err.response?.data?.error || 'Failed to record payout');
+            toast.error(err.response?.data?.error || 'Failed to record payout');
         }
     };
 

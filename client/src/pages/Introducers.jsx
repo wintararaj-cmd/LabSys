@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Doctors.css'; // reuse same CSS
 
 const fmt = (v) => parseFloat(v || 0).toFixed(2);
 
 const Introducers = () => {
+    const toast = useToast();
     const [introducers, setIntroducers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -67,10 +69,10 @@ const Introducers = () => {
         try {
             if (editingIntroducer) {
                 await api.put(`/doctors/introducers/${editingIntroducer.id}`, formData);
-                alert('Introducer updated successfully!');
+                toast.success('Introducer updated successfully!');
             } else {
                 await api.post('/doctors/introducers', formData);
-                alert('Introducer added successfully!');
+                toast.success('Introducer added successfully!');
             }
             resetForm();
             fetchIntroducers();
@@ -127,16 +129,16 @@ const Introducers = () => {
 
     const handleRecordPayout = async () => {
         if (!payoutForm.amount || parseFloat(payoutForm.amount) <= 0) {
-            alert('Enter a valid payout amount');
+            toast.warning('Enter a valid payout amount');
             return;
         }
         try {
             await api.post(`/doctors/${selectedIntroducer.id}/payout`, payoutForm);
-            alert('Payout recorded successfully!');
+            toast.success('Payout recorded successfully!');
             handleViewCommission(selectedIntroducer);
             setActiveTab('OVERVIEW');
         } catch (err) {
-            alert(err.response?.data?.error || 'Failed to record payout');
+            toast.error(err.response?.data?.error || 'Failed to record payout');
         }
     };
 

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext';
 import './Login.css'; // Reuse login styles
 
 const Register = () => {
+    const toast = useToast();
     const [formData, setFormData] = useState({
         labName: '',
         licenseNumber: '',
@@ -36,7 +38,7 @@ const Register = () => {
         try {
             setLoading(true);
             await api.post('/auth/register', formData);
-            alert('Registration successful! Please login.');
+            toast.success('Registration successful! Please login.');
             navigate('/login');
         } catch (err) {
             setError(err.response?.data?.error || 'Registration failed. Please try again.');
