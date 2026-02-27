@@ -300,6 +300,59 @@
     border-color: #cbd5e1;
 }
 
+/* ── Cash Book segmented view filter ─────────────────────────── */
+.cb-view-seg {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    background: #f1f5f9;
+    padding: 0.25rem;
+    border-radius: 0.625rem;
+    border: 1px solid #e2e8f0;
+}
+
+.cb-seg-btn {
+    padding: 0.375rem 0.875rem;
+    border: none;
+    background: transparent;
+    border-radius: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+}
+
+.cb-seg-btn:hover {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.cb-seg-active {
+    background: white !important;
+    color: #1e293b !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+/* Active colours per segment */
+.cb-seg-btn.cb-seg-active[data-view="CASH_RECEIPT"] {
+    color: #15803d !important;
+}
+
+.cb-seg-btn.cb-seg-active[data-view="BANK_RECEIPT"] {
+    color: #1d4ed8 !important;
+}
+
+.cb-seg-btn.cb-seg-active[data-view="CASH_PAYMENT"] {
+    color: #c2410c !important;
+}
+
+.cb-seg-btn.cb-seg-active[data-view="BANK_PAYMENT"] {
+    color: #be185d !important;
+}
+
+
 /* ============================================================
    Double-Column Cash Book
    ============================================================ */

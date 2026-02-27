@@ -14,8 +14,12 @@ const FinancialReports = () => {
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [paymentMode, setPaymentMode] = useState('ALL');
+    // Cash Book view filter (client-side slice)
+    const [cbView, setCbView] = useState('ALL');
 
     useEffect(() => { fetchReportData(); }, [activeTab, startDate, endDate, paymentMode]);
+    // reset cbView when tab changes
+    useEffect(() => { if (activeTab !== 'CASH') setCbView('ALL'); }, [activeTab]);
 
     const fetchReportData = async () => {
         setLoading(true);
@@ -173,8 +177,13 @@ const FinancialReports = () => {
                         </thead>
                         <tbody>
                             {(() => {
-                                const inward = data.filter(r => r.type === 'INWARD');
-                                const outward = data.filter(r => r.type === 'OUTWARD');
+                                // Apply cbView client-side slice
+                                let inward = data.filter(r => r.type === 'INWARD');
+                                let outward = data.filter(r => r.type === 'OUTWARD');
+                                if (cbView === 'CASH_RECEIPT') { inward = inward.filter(r => r.cash_in > 0); outward = []; }
+                                if (cbView === 'BANK_RECEIPT') { inward = inward.filter(r => r.bank_in > 0); outward = []; }
+                                if (cbView === 'CASH_PAYMENT') { inward = []; outward = outward.filter(r => r.cash_out > 0); }
+                                if (cbView === 'BANK_PAYMENT') { inward = []; outward = outward.filter(r => r.bank_out > 0); }
                                 const maxLen = Math.max(inward.length, outward.length, 1);
 
                                 if (data.length === 0) {
@@ -394,16 +403,38 @@ const FinancialReports = () => {
                         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </div>
                     {activeTab === 'CASH' && (
-                        <div className="filter-group">
-                            <label>Payment Mode</label>
-                            <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
-                                <option value="ALL">All Modes</option>
-                                <option value="CASH">Cash</option>
-                                <option value="CARD">Card</option>
-                                <option value="UPI">UPI</option>
-                                <option value="ONLINE">Online</option>
-                            </select>
-                        </div>
+                        <>
+                            <div className="filter-group">
+                                <label>Payment Mode</label>
+                                <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
+                                    <option value="ALL">All Modes</option>
+                                    <option value="CASH">Cash</option>
+                                    <option value="CARD">Card</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="ONLINE">Online</option>
+                                </select>
+                            </div>
+                            <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
+                                <label>View</label>
+                                <div className="cb-view-seg">
+                                    {[
+                                        { val: 'ALL', label: '📒 All' },
+                                        { val: 'CASH_RECEIPT', label: '💵 Cash Receipt' },
+                                        { val: 'BANK_RECEIPT', label: '🏦 Bank Receipt' },
+                                        { val: 'CASH_PAYMENT', label: '📤 Cash Payment' },
+                                        { val: 'BANK_PAYMENT', label: '🏧 Bank Payment' },
+                                    ].map(({ val, label }) => (
+                                        <button
+                                            key={val}
+                                            className={`cb-seg-btn ${cbView === val ? 'cb-seg-active' : ''}`}
+                                            onClick={() => setCbView(val)}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
 
