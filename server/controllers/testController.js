@@ -154,17 +154,19 @@ const updateTest = async (req, res) => {
 
         const tenantId = req.tenantId;
 
-        // Parse gstPercentage explicitly — the <select> returns a string (e.g. "0"),
-        // and we must ensure numeric 0 is stored, not skipped.
-        const parsedGst = parseFloat(gstPercentage);
-        const gstValue = isNaN(parsedGst) ? 0 : parsedGst;
+        // Parse numeric fields to ensure they are handled correctly by Postgres
+        // The <select> or <input> may return strings; we want numeric values in the DB.
+        const gstValue = isNaN(parseFloat(gstPercentage)) ? 0 : parseFloat(gstPercentage);
+        const priceValue = isNaN(parseFloat(price)) ? 0 : parseFloat(price);
+        const costValue = isNaN(parseFloat(cost)) ? 0 : parseFloat(cost);
+        const tatValue = isNaN(parseInt(tatHours)) ? null : parseInt(tatHours);
 
         const result = await query(
             `UPDATE tests SET
         name = $1,
         code = $2,
         category = $3,
-        department = COALESCE($4, department),
+        department = $4,
         price = $5,
         cost = $6,
         tat_hours = COALESCE($7, tat_hours),
@@ -177,8 +179,8 @@ const updateTest = async (req, res) => {
       WHERE id = $14 AND tenant_id = $15
       RETURNING *`,
             [
-                name, code, category, department || null, price, cost, tatHours,
-                normalRangeMale, normalRangeFemale, unit, sampleType, gstValue,
+                name, code, category, department || 'GENERAL', priceValue, costValue, tatValue,
+                normalRangeMale || null, normalRangeFemale || null, unit || null, sampleType || null, gstValue,
                 isProfile !== undefined ? isProfile : null,
                 id, tenantId
             ]

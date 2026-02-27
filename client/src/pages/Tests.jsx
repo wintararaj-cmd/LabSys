@@ -24,11 +24,11 @@ function Tests() {
         department: 'GENERAL',
         price: '',
         cost: '',
-        tat_hours: '',
-        normal_range_male: '',
-        normal_range_female: '',
+        tatHours: '',
+        normalRangeMale: '',
+        normalRangeFemale: '',
         unit: '',
-        sample_type: 'Blood',
+        sampleType: 'Blood',
         gstPercentage: 0,
         isProfile: false,
         profileItems: []
@@ -76,11 +76,11 @@ function Tests() {
             department: test.department || 'GENERAL',
             price: test.price,
             cost: test.cost,
-            tat_hours: test.tat_hours,
-            normal_range_male: test.normal_range_male || '',
-            normal_range_female: test.normal_range_female || '',
+            tatHours: test.tat_hours,
+            normalRangeMale: test.normal_range_male || '',
+            normalRangeFemale: test.normal_range_female || '',
             unit: test.unit || '',
-            sample_type: test.sample_type,
+            sampleType: test.sample_type,
             gstPercentage: parseFloat(test.gst_percentage) || 0,
             isProfile: test.is_profile || false,
             profileItems: test.profileItems ? test.profileItems.map(p => p.test_id) : []
@@ -113,11 +113,11 @@ function Tests() {
             department: 'GENERAL',
             price: '',
             cost: '',
-            tat_hours: '',
-            normal_range_male: '',
-            normal_range_female: '',
+            tatHours: '',
+            normalRangeMale: '',
+            normalRangeFemale: '',
             unit: '',
-            sample_type: 'Blood',
+            sampleType: 'Blood',
             gstPercentage: 0,
             isProfile: false,
             profileItems: []
@@ -267,8 +267,8 @@ function Tests() {
                                 <input
                                     type="number"
                                     className="form-input"
-                                    value={formData.tat_hours}
-                                    onChange={(e) => setFormData({ ...formData, tat_hours: e.target.value })}
+                                    value={formData.tatHours}
+                                    onChange={(e) => setFormData({ ...formData, tatHours: e.target.value })}
                                     required
                                     min="1"
                                 />
@@ -278,8 +278,8 @@ function Tests() {
                                 <label className="form-label">Sample Type *</label>
                                 <select
                                     className="form-select"
-                                    value={formData.sample_type}
-                                    onChange={(e) => setFormData({ ...formData, sample_type: e.target.value })}
+                                    value={formData.sampleType}
+                                    onChange={(e) => setFormData({ ...formData, sampleType: e.target.value })}
                                     required
                                 >
                                     <option value="Blood">Blood</option>
@@ -353,8 +353,8 @@ function Tests() {
                                 <input
                                     type="text"
                                     className="form-input"
-                                    value={formData.normal_range_male}
-                                    onChange={(e) => setFormData({ ...formData, normal_range_male: e.target.value })}
+                                    value={formData.normalRangeMale}
+                                    onChange={(e) => setFormData({ ...formData, normalRangeMale: e.target.value })}
                                     placeholder="13-17"
                                 />
                             </div>
@@ -364,8 +364,8 @@ function Tests() {
                                 <input
                                     type="text"
                                     className="form-input"
-                                    value={formData.normal_range_female}
-                                    onChange={(e) => setFormData({ ...formData, normal_range_female: e.target.value })}
+                                    value={formData.normalRangeFemale}
+                                    onChange={(e) => setFormData({ ...formData, normalRangeFemale: e.target.value })}
                                     placeholder="12-15"
                                 />
                             </div>
