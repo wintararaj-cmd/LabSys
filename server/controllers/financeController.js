@@ -277,6 +277,9 @@ const getCashBook = async (req, res) => {
         `;
 
         // ── OUTWARD: Purchase Invoices ────────────────────────────────────
+        // Use net_amount (includes tax) as the true cash/bank outflow.
+        // No payment_status filter — any purchase paid by cash/bank is a real outflow
+        // regardless of whether the backend label is PAID, PARTIAL, or UNPAID.
         const purchaseSql = `
             SELECT
                 pi.created_at,
@@ -286,14 +289,13 @@ const getCashBook = async (req, res) => {
                 0 as cash_in,
                 0 as bank_in,
                 CASE WHEN COALESCE(pi.payment_mode,'CASH') = 'CASH'
-                     THEN pi.total_amount ELSE 0 END as cash_out,
+                     THEN pi.net_amount ELSE 0 END as cash_out,
                 CASE WHEN COALESCE(pi.payment_mode,'CASH') != 'CASH'
-                     THEN pi.total_amount ELSE 0 END as bank_out,
+                     THEN pi.net_amount ELSE 0 END as bank_out,
                 'OUTWARD' as type,
                 'Purchase' as category
             FROM purchase_invoices pi
             WHERE pi.tenant_id = $1
-              AND pi.payment_status IN ('PAID','PARTIAL')
             ${dateFilterPurchase}
         `;
 
