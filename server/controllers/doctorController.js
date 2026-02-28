@@ -47,18 +47,21 @@ const getDoctors = async (req, res) => {
  */
 const addDoctor = async (req, res) => {
     try {
-        const { name, specialization, phone, email, commissionPercentage } = req.body;
+        const { name, specialization, phone, email, qualification, registration_number, address, commission_type, commission_value, commissionPercentage } = req.body;
         const tenantId = req.tenantId;
 
         if (!name) {
             return res.status(400).json({ error: 'Name is required' });
         }
 
+        const type = commission_type || 'PERCENTAGE';
+        const val = commission_value || commissionPercentage || 0;
+
         const result = await query(
-            `INSERT INTO doctors (tenant_id, name, specialization, phone, email, commission_percentage)
-       VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO doctors (tenant_id, name, specialization, phone, email, qualification, registration_number, address, commission_type, commission_value, commission_percentage)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-            [tenantId, name, specialization, phone, email, commissionPercentage || 0]
+            [tenantId, name, specialization, phone, email, qualification, registration_number, address, type, val, val]
         );
 
         res.status(201).json({
@@ -78,19 +81,42 @@ const addDoctor = async (req, res) => {
 const updateDoctor = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, specialization, phone, email, commissionPercentage } = req.body;
+        const { name, specialization, phone, email, qualification, registration_number, address, commission_type, commission_value, commissionPercentage } = req.body;
         const tenantId = req.tenantId;
+
+        const type = commission_type || 'PERCENTAGE';
+        const val = commission_value || commissionPercentage || 0;
+
+        require('fs').appendFileSync('doctor_update_debug.log', JSON.stringify({ id, body: req.body, type, val }) + '\n');
 
         const result = await query(
             `UPDATE doctors SET
-        name = COALESCE($1, name),
-        specialization = COALESCE($2, specialization),
-        phone = COALESCE($3, phone),
-        email = COALESCE($4, email),
-        commission_percentage = COALESCE($5, commission_percentage)
-       WHERE id = $6 AND tenant_id = $7
+        name = $1,
+        specialization = $2,
+        phone = $3,
+        email = $4,
+        qualification = $5,
+        registration_number = $6,
+        address = $7,
+        commission_type = $8,
+        commission_value = $9,
+        commission_percentage = $10
+       WHERE id = $11 AND tenant_id = $12
        RETURNING *`,
-            [name, specialization, phone, email, commissionPercentage, id, tenantId]
+            [
+                name || null,
+                specialization || null,
+                phone || null,
+                email || null,
+                qualification || null,
+                registration_number || null,
+                address || null,
+                type,
+                val,
+                val,
+                id,
+                tenantId
+            ]
         );
 
         if (result.rows.length === 0) {
@@ -103,6 +129,7 @@ const updateDoctor = async (req, res) => {
         });
 
     } catch (error) {
+        require('fs').appendFileSync('doctor_update_debug.log', 'Error: ' + error.message + '\n');
         console.error('Update doctor error:', error);
         res.status(500).json({ error: 'Failed to update doctor' });
     }
@@ -333,16 +360,19 @@ const getIntroducers = async (req, res) => {
  */
 const addIntroducer = async (req, res) => {
     try {
-        const { name, specialization, phone, email, commissionPercentage, address } = req.body;
+        const { name, specialization, phone, email, qualification, registration_number, address, commission_type, commission_value, commissionPercentage } = req.body;
         const tenantId = req.tenantId;
 
         if (!name) return res.status(400).json({ error: 'Name is required' });
 
+        const type = commission_type || 'PERCENTAGE';
+        const val = commission_value || commissionPercentage || 0;
+
         const result = await query(
-            `INSERT INTO doctors (tenant_id, name, specialization, phone, email, commission_percentage, is_introducer)
-             VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+            `INSERT INTO doctors (tenant_id, name, specialization, phone, email, qualification, registration_number, address, commission_type, commission_value, commission_percentage, is_introducer)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
              RETURNING *`,
-            [tenantId, name, specialization, phone, email, commissionPercentage || 0]
+            [tenantId, name, specialization, phone, email, qualification, registration_number, address, type, val, val]
         );
 
         res.status(201).json({ message: 'Introducer added', doctor: result.rows[0] });
@@ -358,19 +388,40 @@ const addIntroducer = async (req, res) => {
 const updateIntroducer = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, specialization, phone, email, commissionPercentage } = req.body;
+        const { name, specialization, phone, email, qualification, registration_number, address, commission_type, commission_value, commissionPercentage } = req.body;
         const tenantId = req.tenantId;
+
+        const type = commission_type || 'PERCENTAGE';
+        const val = commission_value || commissionPercentage || 0;
 
         const result = await query(
             `UPDATE doctors SET
-                name = COALESCE($1, name),
-                specialization = COALESCE($2, specialization),
-                phone = COALESCE($3, phone),
-                email = COALESCE($4, email),
-                commission_percentage = COALESCE($5, commission_percentage)
-             WHERE id = $6 AND tenant_id = $7 AND is_introducer = TRUE
+                name = $1,
+                specialization = $2,
+                phone = $3,
+                email = $4,
+                qualification = $5,
+                registration_number = $6,
+                address = $7,
+                commission_type = $8,
+                commission_value = $9,
+                commission_percentage = $10
+             WHERE id = $11 AND tenant_id = $12 AND is_introducer = TRUE
              RETURNING *`,
-            [name, specialization, phone, email, commissionPercentage, id, tenantId]
+            [
+                name || null,
+                specialization || null,
+                phone || null,
+                email || null,
+                qualification || null,
+                registration_number || null,
+                address || null,
+                type,
+                val,
+                val,
+                id,
+                tenantId
+            ]
         );
 
         if (result.rows.length === 0) return res.status(404).json({ error: 'Introducer not found' });

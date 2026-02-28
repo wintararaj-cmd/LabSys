@@ -572,8 +572,8 @@ const updatePayment = async (req, res) => {
         if (parsedPaid < 0) {
             return res.status(400).json({ error: 'Paid amount cannot be less than 0' });
         }
-        if (parsedPaid > currentBalance) {
-            return res.status(400).json({ error: `Paid amount cannot exceed the Balance Amount(₹${currentBalance.toFixed(2)})` });
+        if (parsedPaid !== currentBalance) {
+            return res.status(400).json({ error: `Outstanding amount cannot be paid in part. Please pay the full balance of ₹${currentBalance.toFixed(2)}` });
         }
 
         const newPaidAmount = parseFloat(invoice.paid_amount) + parsedPaid;

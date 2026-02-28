@@ -84,13 +84,22 @@ const calculateCommission = async ({
         };
     }
 
-    // Fetch doctor's commission percentage
+    // Fetch doctor's commission settings
     const docRes = await query(
-        'SELECT commission_percentage FROM doctors WHERE id = $1',
+        'SELECT commission_type, commission_value, commission_percentage FROM doctors WHERE id = $1',
         [doctorId]
     );
-    const docCommPct = parseFloat(docRes.rows[0]?.commission_percentage || 0);
-    const totalCommission = (netAmount * docCommPct) / 100;
+
+    const doctorSettings = docRes.rows[0] || {};
+    const commType = doctorSettings.commission_type || 'PERCENTAGE';
+    const commVal = parseFloat(doctorSettings.commission_value || doctorSettings.commission_percentage || 0);
+
+    let totalCommission = 0;
+    if (commType === 'FIXED') {
+        totalCommission = commVal;
+    } else {
+        totalCommission = (netAmount * commVal) / 100;
+    }
 
     const isSelf = !introducerId && String(introducerRaw || '').trim().toUpperCase() === 'SELF';
     const hasIntro = !!introducerId;
@@ -147,7 +156,8 @@ const calculateCommission = async ({
         doctorId,
         introducerId: hasIntro ? introducerId : null,
         totalCommission: parseFloat(totalCommission.toFixed(2)),
-        commissionPct: docCommPct,
+        commissionPct: commVal,
+        commissionType: commType,
         summary
     };
 };

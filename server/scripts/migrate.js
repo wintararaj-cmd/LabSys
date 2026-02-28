@@ -230,6 +230,14 @@ async function migrate() {
                     ALTER TABLE users ADD COLUMN IF NOT EXISTS can_update BOOLEAN DEFAULT TRUE;
                     ALTER TABLE users ADD COLUMN IF NOT EXISTS module_permissions JSONB DEFAULT '{}'::jsonb;
 
+                    -- Doctors additional fields
+                    ALTER TABLE doctors ADD COLUMN IF NOT EXISTS qualification VARCHAR(255);
+                    ALTER TABLE doctors ADD COLUMN IF NOT EXISTS registration_number VARCHAR(100);
+                    ALTER TABLE doctors ADD COLUMN IF NOT EXISTS address TEXT;
+                    ALTER TABLE doctors ADD COLUMN IF NOT EXISTS commission_type VARCHAR(20) DEFAULT 'PERCENTAGE';
+                    ALTER TABLE doctors ADD COLUMN IF NOT EXISTS commission_value DECIMAL(10,2) DEFAULT 0.00;
+                    ALTER TABLE doctors ADD COLUMN IF NOT EXISTS commission_percentage DECIMAL(5,2) DEFAULT 0.00;
+
                 `);
                 console.log('Incremental updates applied.');
             } catch (err) {

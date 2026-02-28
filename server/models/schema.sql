@@ -69,6 +69,11 @@ CREATE TABLE doctors (
     specialization VARCHAR(100),
     phone VARCHAR(20),
     email VARCHAR(255),
+    qualification VARCHAR(255),
+    registration_number VARCHAR(100),
+    address TEXT,
+    commission_type VARCHAR(20) DEFAULT 'PERCENTAGE',
+    commission_value DECIMAL(10,2) DEFAULT 0.00,
     commission_percentage DECIMAL(5,2) DEFAULT 0.00,
     is_introducer BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -586,8 +586,8 @@ function Billing() {
             toast.warning('Paid amount cannot be less than 0');
             return;
         }
-        if (paid > bal) {
-            toast.warning(`Paid amount cannot exceed the Balance Amount (₹${bal.toFixed(2)})`);
+        if (paid !== bal) {
+            toast.warning(`Outstanding amount cannot be paid in part. Please pay the full balance of ₹${bal.toFixed(2)}`);
             return;
         }
 
@@ -1492,12 +1492,11 @@ function Billing() {
                                         type="number"
                                         className="form-input"
                                         value={paymentData.paidAmount}
-                                        onChange={(e) => setPaymentData({ ...paymentData, paidAmount: e.target.value })}
-                                        max={paymentData.balanceAmount}
-                                        min="0.01"
-                                        step="0.01"
-                                        required
+                                        readOnly
+                                        disabled
+                                        style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
                                     />
+                                    <small style={{ color: '#e74c3c', marginTop: '4px', display: 'block' }}>Outstanding amount cannot be paid in part.</small>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Payment Mode</label>

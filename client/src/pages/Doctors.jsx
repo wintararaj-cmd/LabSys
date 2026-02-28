@@ -263,10 +263,31 @@ const Doctors = () => {
                                 <label>Specialization</label>
                                 <input
                                     type="text"
+                                    list="specializations-list"
                                     value={formData.specialization}
                                     onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
                                     placeholder="Cardiologist"
                                 />
+                                <datalist id="specializations-list">
+                                    <option value="Cardiologist" />
+                                    <option value="Dentist" />
+                                    <option value="Dermatologist" />
+                                    <option value="Endocrinologist" />
+                                    <option value="ENT Specialist" />
+                                    <option value="Gastroenterologist" />
+                                    <option value="General Physician" />
+                                    <option value="Gynecologist" />
+                                    <option value="Neurologist" />
+                                    <option value="Oncologist" />
+                                    <option value="Ophthalmologist" />
+                                    <option value="Orthopedic" />
+                                    <option value="Pediatrician" />
+                                    <option value="Psychiatrist" />
+                                    <option value="Pulmonologist" />
+                                    <option value="Radiologist" />
+                                    <option value="Surgeon" />
+                                    <option value="Urologist" />
+                                </datalist>
                             </div>
 
                             <div className="form-group">
