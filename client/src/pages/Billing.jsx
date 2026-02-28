@@ -28,6 +28,7 @@ function Billing() {
     const [previousDues, setPreviousDues] = useState([]);
     const [duesLoading, setDuesLoading] = useState(true);
     const [showDues, setShowDues] = useState(true);
+    const [currentPageDues, setCurrentPageDues] = useState(1);
 
     // Filter state
     const [filters, setFilters] = useState({
@@ -667,6 +668,12 @@ function Billing() {
         }
     };
 
+    const duesPerPage = 5;
+    const indexOfLastDue = currentPageDues * duesPerPage;
+    const indexOfFirstDue = indexOfLastDue - duesPerPage;
+    const currentDues = previousDues.slice(indexOfFirstDue, indexOfLastDue);
+    const totalPagesDues = Math.ceil(previousDues.length / duesPerPage);
+
     return (
         <div className="billing-container">
             <div className="page-header">
@@ -712,7 +719,7 @@ function Billing() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {previousDues.map(due => (
+                                    {currentDues.map(due => (
                                         <tr key={due.id} className="dues-row">
                                             <td>
                                                 <span
@@ -745,6 +752,25 @@ function Billing() {
                                     ))}
                                 </tbody>
                             </table>
+                            {totalPagesDues > 1 && (
+                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', padding: '10px', background: 'transparent' }}>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCurrentPageDues(prev => Math.max(prev - 1, 1)); }}
+                                        disabled={currentPageDues === 1}
+                                        style={{ padding: '4px 12px', border: '1px solid #d1d5db', borderRadius: '4px', background: currentPageDues === 1 ? '#f3f4f6' : 'white', cursor: currentPageDues === 1 ? 'not-allowed' : 'pointer', fontSize: '13px' }}
+                                    >
+                                        Previous
+                                    </button>
+                                    <span style={{ fontSize: '13px', color: '#4b5563' }}>Page {currentPageDues} of {totalPagesDues}</span>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setCurrentPageDues(prev => Math.min(prev + 1, totalPagesDues)); }}
+                                        disabled={currentPageDues === totalPagesDues}
+                                        style={{ padding: '4px 12px', border: '1px solid #d1d5db', borderRadius: '4px', background: currentPageDues === totalPagesDues ? '#f3f4f6' : 'white', cursor: currentPageDues === totalPagesDues ? 'not-allowed' : 'pointer', fontSize: '13px' }}
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
