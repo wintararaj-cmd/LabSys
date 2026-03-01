@@ -59,8 +59,8 @@ const createEntry = async (req, res) => {
         if (!type || !particulars || !amount) {
             return res.status(400).json({ error: 'type, particulars, and amount are required' });
         }
-        if (!['CASH_IN', 'CASH_OUT', 'BANK_IN', 'BANK_OUT'].includes(type)) {
-            return res.status(400).json({ error: 'type must be CASH_IN, CASH_OUT, BANK_IN, or BANK_OUT' });
+        if (!['CASH_IN', 'CASH_OUT', 'BANK_IN', 'BANK_OUT', 'CONTRA_DEPOSIT', 'CONTRA_WITHDRAWAL'].includes(type)) {
+            return res.status(400).json({ error: 'type must be CASH_IN, CASH_OUT, BANK_IN, BANK_OUT, CONTRA_DEPOSIT, or CONTRA_WITHDRAWAL' });
         }
 
         const result = await query(

@@ -55,7 +55,10 @@ const FinancialReports = () => {
     };
 
     const handleEntryTypeChange = (type) => {
-        setEntryForm(f => ({ ...f, type, payment_mode: type.startsWith('CASH') ? 'CASH' : 'BANK' }));
+        let defaultMode = 'CASH';
+        if (type.startsWith('BANK')) defaultMode = 'BANK';
+        if (type.startsWith('CONTRA')) defaultMode = 'CASH'; // irrelevant but default
+        setEntryForm(f => ({ ...f, type, payment_mode: defaultMode }));
     };
 
     const handleEntrySave = async () => {
@@ -67,8 +70,18 @@ const FinancialReports = () => {
                 await cashBookEntryAPI.update(editingEntryId, entryForm);
                 toast.success('Entry updated');
             } else {
-                await cashBookEntryAPI.create(entryForm);
-                toast.success('Entry recorded');
+                if (entryForm.type === 'CONTRA_DEPOSIT') {
+                    await cashBookEntryAPI.create({ ...entryForm, type: 'CASH_OUT', payment_mode: 'CASH', category: 'Contra Entry', particulars: `Cash to Bank: ${entryForm.particulars}` });
+                    await cashBookEntryAPI.create({ ...entryForm, type: 'BANK_IN', payment_mode: 'BANK', category: 'Contra Entry', particulars: `Cash to Bank: ${entryForm.particulars}` });
+                    toast.success('Contra Deposit recorded');
+                } else if (entryForm.type === 'CONTRA_WITHDRAWAL') {
+                    await cashBookEntryAPI.create({ ...entryForm, type: 'BANK_OUT', payment_mode: 'BANK', category: 'Contra Entry', particulars: `Bank to Cash: ${entryForm.particulars}` });
+                    await cashBookEntryAPI.create({ ...entryForm, type: 'CASH_IN', payment_mode: 'CASH', category: 'Contra Entry', particulars: `Bank to Cash: ${entryForm.particulars}` });
+                    toast.success('Contra Withdrawal recorded');
+                } else {
+                    await cashBookEntryAPI.create(entryForm);
+                    toast.success('Entry recorded');
+                }
             }
             setShowEntryModal(false);
             fetchReportData();
@@ -91,7 +104,7 @@ const FinancialReports = () => {
                 setGstData(response.data);   // { outputRows, inputRows, slabSummary, summary }
                 setData([]);                 // not used for GST
                 setCashSummary(null);
-            } else if (activeTab === 'CASH') {
+            } else if (activeTab === 'CASH' || activeTab === 'BANK') {
                 params.paymentMode = paymentMode;
                 response = await financeAPI.getCashBook(params);
                 setData(response.data.data || []);
@@ -133,6 +146,19 @@ const FinancialReports = () => {
             return;
         }
 
+        if (activeTab === 'BANK') {
+            const bankData = data.filter(r => r.bank_in > 0 || r.bank_out > 0);
+            if (bankData.length === 0) return;
+            exportToCSV('bank_book_' + startDate + '_' + endDate, bankData, [
+                { key: 'created_at', label: 'Date/Time' }, { key: 'reference', label: 'Reference' },
+                { key: 'particulars', label: 'Particulars' }, { key: 'category', label: 'Category' },
+                { key: 'payment_mode', label: 'Mode' },
+                { key: 'bank_in', label: 'Deposit (₹)' }, { key: 'bank_out', label: 'Withdrawal (₹)' },
+                { key: 'running_bank', label: 'Balance (₹)' }
+            ]);
+            return;
+        }
+
         if (data.length === 0) return;
         const columnMap = {
             SALE: [
@@ -158,11 +184,11 @@ const FinancialReports = () => {
     const renderCashBook = () => {
         const CATEGORY_ICON = {
             'Patient Receipt': '🏥', 'Due Collection': '📋',
-            'Doctor Payout': '👨‍⚕️', 'Purchase': '📦', 'Manual Entry': '✏️',
+            'Doctor Payout': '👨‍⚕️', 'Purchase': '📦', 'Manual Entry': '✏️', 'Contra Entry': '🔄'
         };
         const CATEGORY_COLOR = {
             'Patient Receipt': 'inward', 'Due Collection': 'inward-alt',
-            'Doctor Payout': 'outward', 'Purchase': 'outward-alt', 'Manual Entry': 'outward',
+            'Doctor Payout': 'outward', 'Purchase': 'outward-alt', 'Manual Entry': 'outward', 'Contra Entry': 'contra'
         };
 
         return (
@@ -316,6 +342,77 @@ const FinancialReports = () => {
                     <span><span className="cb-cat-dot" data-cat="outward">👨‍⚕️</span> Doctor Payout</span>
                     <span><span className="cb-cat-dot" data-cat="outward-alt">📦</span> Purchase</span>
                     <span><span className="cb-cat-dot" data-cat="outward">✏️</span> Manual Entry</span>
+                    <span><span className="cb-cat-dot" data-cat="contra">🔄</span> Contra Entry</span>
+                </div>
+            </div>
+        );
+    };
+
+    /* ── Bank Book Single Ledger ─────────────────────────────── */
+    const renderBankBook = () => {
+        const bankData = data.filter(r => r.bank_in > 0 || r.bank_out > 0);
+        return (
+            <div className="sr-root">
+                {/* Summary tiles */}
+                {cashSummary && (
+                    <div className="cb-summary-row justify-center">
+                        <div className="cb-tile cb-tile-bankin flex-1">
+                            <div className="cb-tile-icon">🏦</div>
+                            <div><div className="cb-tile-label">Total Deposits</div><div className="cb-tile-value">{fc(cashSummary.totalBankIn)}</div></div>
+                        </div>
+                        <div className="cb-tile cb-tile-bankout flex-1">
+                            <div className="cb-tile-icon">🏧</div>
+                            <div><div className="cb-tile-label">Total Withdrawals</div><div className="cb-tile-value">{fc(cashSummary.totalBankOut)}</div></div>
+                        </div>
+                        <div className="cb-tile cb-tile-closing-bank flex-1">
+                            <div className="cb-tile-icon">🏛️</div>
+                            <div>
+                                <div className="cb-tile-label">Closing Bank Balance</div>
+                                <div className={`cb-tile-value ${cashSummary.closingBank < 0 ? 'text-danger' : ''}`}>{fc(cashSummary.closingBank)}</div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="sr-table-wrap mt-4" style={{ marginTop: '20px' }}>
+                    <table className="sr-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Particulars</th>
+                                <th>Reference</th>
+                                <th>Mode / Category</th>
+                                <th className="sr-num">Deposit (₹)</th>
+                                <th className="sr-num">Withdrawal (₹)</th>
+                                <th className="sr-num">Balance (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {bankData.length === 0 && (
+                                <tr>
+                                    <td colSpan="7" className="sr-no-data">
+                                        <div className="sr-empty-state">
+                                            <div className="sr-empty-icon">📭</div>
+                                            <div className="sr-empty-title">No bank transactions found</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                            {bankData.map((row, i) => (
+                                <tr key={i} className="sr-row">
+                                    <td className="sr-date">
+                                        {new Date(row.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </td>
+                                    <td><strong>{row.particulars}</strong></td>
+                                    <td><span className="sr-inv-num">{row.reference}</span></td>
+                                    <td><span className="sr-mode-badge sr-mode-bank">{row.payment_mode}</span> <small>{row.category}</small></td>
+                                    <td className="sr-num text-success">{row.bank_in > 0 ? fc(row.bank_in) : '—'}</td>
+                                    <td className="sr-num text-danger">{row.bank_out > 0 ? fc(row.bank_out) : '—'}</td>
+                                    <td className="sr-num bold"><strong>{fc(row.running_bank)}</strong></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         );
@@ -727,7 +824,10 @@ const FinancialReports = () => {
                     <button className={`tab-btn ${activeTab === 'CASH' ? 'active' : ''}`} onClick={() => setActiveTab('CASH')}>
                         💸 Cash Book
                     </button>
-                    {activeTab === 'CASH' && (
+                    <button className={`tab-btn ${activeTab === 'BANK' ? 'active' : ''}`} onClick={() => setActiveTab('BANK')}>
+                        🏛️ Bank Book
+                    </button>
+                    {(activeTab === 'CASH' || activeTab === 'BANK') && (
                         <div className="cb-entry-btns">
                             <button className="cb-entry-btn cb-entry-cashout" onClick={() => openNewEntry('CASH_OUT')} title="Record Cash Payment">
                                 📤 Cash Payment
@@ -740,6 +840,9 @@ const FinancialReports = () => {
                             </button>
                             <button className="cb-entry-btn cb-entry-bankin" onClick={() => openNewEntry('BANK_IN')} title="Record Bank Receipt">
                                 🏦 Bank Receipt
+                            </button>
+                            <button className="cb-entry-btn cb-entry-contra" onClick={() => openNewEntry('CONTRA_DEPOSIT')} title="Record Contra Entry (Cash to Bank / Bank to Cash)" style={{ backgroundColor: '#e0e7ff', color: '#3730a3' }}>
+                                🔄 Contra Entry
                             </button>
                         </div>
                     )}
@@ -755,7 +858,7 @@ const FinancialReports = () => {
                         <label>To Date</label>
                         <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </div>
-                    {activeTab === 'CASH' && (
+                    {(activeTab === 'CASH' || activeTab === 'BANK') && (
                         <>
                             <div className="filter-group">
                                 <label>Payment Mode</label>
@@ -769,26 +872,28 @@ const FinancialReports = () => {
                                     <option value="CHEQUE">Cheque</option>
                                 </select>
                             </div>
-                            <div className="filter-group">
-                                <label>View</label>
-                                <div className="cb-view-seg">
-                                    {[
-                                        { val: 'ALL', label: '📒 All' },
-                                        { val: 'CASH_RECEIPT', label: '💵 Cash Receipt' },
-                                        { val: 'BANK_RECEIPT', label: '🏦 Bank Receipt' },
-                                        { val: 'CASH_PAYMENT', label: '📤 Cash Payment' },
-                                        { val: 'BANK_PAYMENT', label: '🏧 Bank Payment' },
-                                    ].map(({ val, label }) => (
-                                        <button
-                                            key={val}
-                                            className={`cb-seg-btn ${cbView === val ? 'cb-seg-active' : ''}`}
-                                            onClick={() => setCbView(val)}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
+                            {activeTab === 'CASH' && (
+                                <div className="filter-group">
+                                    <label>View</label>
+                                    <div className="cb-view-seg">
+                                        {[
+                                            { val: 'ALL', label: '📒 All' },
+                                            { val: 'CASH_RECEIPT', label: '💵 Cash Receipt' },
+                                            { val: 'BANK_RECEIPT', label: '🏦 Bank Receipt' },
+                                            { val: 'CASH_PAYMENT', label: '📤 Cash Payment' },
+                                            { val: 'BANK_PAYMENT', label: '🏧 Bank Payment' },
+                                        ].map(({ val, label }) => (
+                                            <button
+                                                key={val}
+                                                className={`cb-seg-btn ${cbView === val ? 'cb-seg-active' : ''}`}
+                                                onClick={() => setCbView(val)}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </>
                     )}
                 </div>
@@ -807,6 +912,7 @@ const FinancialReports = () => {
                             {activeTab === 'SALE' && renderSaleReport()}
                             {activeTab === 'GST' && renderGSTReport()}
                             {activeTab === 'CASH' && renderCashBook()}
+                            {activeTab === 'BANK' && renderBankBook()}
                         </>
                     )}
                 </div>
@@ -822,17 +928,21 @@ const FinancialReports = () => {
                         </div>
 
                         {/* Transaction type selector */}
-                        <div className="cb-modal-type-row">
+                        <div className="cb-modal-type-row" style={{ flexWrap: 'wrap', gap: '8px' }}>
                             {[
                                 { val: 'CASH_IN', label: '💵 Cash In', cls: 'type-cashin' },
                                 { val: 'BANK_IN', label: '🏦 Bank In', cls: 'type-bankin' },
                                 { val: 'CASH_OUT', label: '📤 Cash Out', cls: 'type-cashout' },
                                 { val: 'BANK_OUT', label: '🏧 Bank Out', cls: 'type-bankout' },
+                                { val: 'CONTRA_DEPOSIT', label: '🔄 Cash to Bank', cls: 'type-bankin' },
+                                { val: 'CONTRA_WITHDRAWAL', label: '🔄 Bank to Cash', cls: 'type-cashin' },
                             ].map(({ val, label, cls }) => (
                                 <button
                                     key={val}
                                     className={`cb-type-btn ${cls} ${entryForm.type === val ? 'selected' : ''}`}
                                     onClick={() => handleEntryTypeChange(val)}
+                                    // Disable contra entries in edit mode 
+                                    disabled={editingEntryId && val.startsWith('CONTRA')}
                                 >
                                     {label}
                                 </button>
@@ -892,6 +1002,9 @@ const FinancialReports = () => {
                                             <option>Advance Deposit</option>
                                             <option>Loan Received</option>
                                             <option>Other Income</option>
+                                        </optgroup>
+                                        <optgroup label="System">
+                                            <option>Contra Entry</option>
                                         </optgroup>
                                     </select>
                                 </div>
