@@ -374,45 +374,125 @@ const FinancialReports = () => {
                     </div>
                 )}
 
-                <div className="sr-table-wrap mt-4" style={{ marginTop: '20px' }}>
-                    <table className="sr-table">
+                {/* Double-column table (Bank) */}
+                <div className="cb-table-wrap">
+                    <table className="cb-table">
                         <thead>
+                            <tr className="cb-col-group-row">
+                                <th colSpan="4" className="cb-group-header cb-group-dr">📥 Dr Side — Receipts (Bank In)</th>
+                                <th colSpan="4" className="cb-group-header cb-group-cr">📤 Cr Side — Payments (Bank Out)</th>
+                            </tr>
                             <tr>
-                                <th>Date</th>
-                                <th>Particulars</th>
-                                <th>Reference</th>
-                                <th>Mode / Category</th>
-                                <th className="sr-num">Deposit (₹)</th>
-                                <th className="sr-num">Withdrawal (₹)</th>
-                                <th className="sr-num">Balance (₹)</th>
+                                <th className="cb-th-dr">Date</th>
+                                <th className="cb-th-dr">Particulars</th>
+                                <th className="cb-th-dr cb-num">Cash (₹)</th>
+                                <th className="cb-th-dr cb-num">Bank (₹)</th>
+                                <th className="cb-th-cr">Date</th>
+                                <th className="cb-th-cr">Particulars</th>
+                                <th className="cb-th-cr cb-num">Cash (₹)</th>
+                                <th className="cb-th-cr cb-num">Bank (₹)</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {bankData.length === 0 && (
-                                <tr>
-                                    <td colSpan="7" className="sr-no-data">
-                                        <div className="sr-empty-state">
-                                            <div className="sr-empty-icon">📭</div>
-                                            <div className="sr-empty-title">No bank transactions found</div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                            {bankData.map((row, i) => (
-                                <tr key={i} className="sr-row">
-                                    <td className="sr-date">
-                                        {new Date(row.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                    </td>
-                                    <td><strong>{row.particulars}</strong></td>
-                                    <td><span className="sr-inv-num">{row.reference}</span></td>
-                                    <td><span className="sr-mode-badge sr-mode-bank">{row.payment_mode}</span> <small>{row.category}</small></td>
-                                    <td className="sr-num text-success">{row.bank_in > 0 ? fc(row.bank_in) : '—'}</td>
-                                    <td className="sr-num text-danger">{row.bank_out > 0 ? fc(row.bank_out) : '—'}</td>
-                                    <td className="sr-num bold"><strong>{fc(row.running_bank)}</strong></td>
-                                </tr>
-                            ))}
+                            {(() => {
+                                let inward = bankData.filter(r => r.type === 'INWARD' && r.bank_in > 0);
+                                let outward = bankData.filter(r => r.type === 'OUTWARD' && r.bank_out > 0);
+
+                                const CATEGORY_ICON = {
+                                    'Patient Receipt': '🏥', 'Due Collection': '📋',
+                                    'Doctor Payout': '👨‍⚕️', 'Purchase': '📦', 'Manual Entry': '✏️', 'Contra Entry': '🔄'
+                                };
+                                const CATEGORY_COLOR = {
+                                    'Patient Receipt': 'inward', 'Due Collection': 'inward-alt',
+                                    'Doctor Payout': 'outward', 'Purchase': 'outward-alt', 'Manual Entry': 'outward', 'Contra Entry': 'contra'
+                                };
+                                const maxLen = Math.max(inward.length, outward.length, 1);
+
+                                if (bankData.length === 0) {
+                                    return (
+                                        <tr>
+                                            <td colSpan="8" className="cb-no-data">No bank transactions found for the selected period</td>
+                                        </tr>
+                                    );
+                                }
+
+                                return Array.from({ length: maxLen }).map((_, i) => {
+                                    const dr = inward[i];
+                                    const cr = outward[i];
+                                    return (
+                                        <tr key={i} className={i % 2 === 0 ? 'cb-row-even' : 'cb-row-odd'}>
+                                            {dr ? (
+                                                <>
+                                                    <td className="cb-td-dr cb-date">
+                                                        {new Date(dr.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                                    </td>
+                                                    <td className="cb-td-dr cb-particulars">
+                                                        <span className="cb-cat-dot" data-cat={CATEGORY_COLOR[dr.category]} title={dr.category}>
+                                                            {CATEGORY_ICON[dr.category] || '•'}
+                                                        </span>
+                                                        <span className="cb-main">{dr.particulars}</span>
+                                                        <span className="cb-ref">{dr.reference} · <span className={`mode-badge ${dr.payment_mode}`}>{dr.payment_mode}</span></span>
+                                                    </td>
+                                                    <td className="cb-td-dr cb-num cb-cash-in">{dr.cash_in > 0 ? fc(dr.cash_in) : '—'}</td>
+                                                    <td className="cb-td-dr cb-num cb-bank-in">{dr.bank_in > 0 ? fc(dr.bank_in) : '—'}</td>
+                                                </>
+                                            ) : (
+                                                <td colSpan="4" className="cb-td-dr cb-empty" />
+                                            )}
+                                            {cr ? (
+                                                <>
+                                                    <td className="cb-td-cr cb-date">
+                                                        {new Date(cr.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                                    </td>
+                                                    <td className="cb-td-cr cb-particulars">
+                                                        <span className="cb-cat-dot" data-cat={CATEGORY_COLOR[cr.category]} title={cr.category}>
+                                                            {CATEGORY_ICON[cr.category] || '•'}
+                                                        </span>
+                                                        <span className="cb-main">{cr.particulars}</span>
+                                                        <span className="cb-ref">{cr.reference} · <span className={`mode-badge ${cr.payment_mode}`}>{cr.payment_mode}</span></span>
+                                                    </td>
+                                                    <td className="cb-td-cr cb-num cb-cash-out">{cr.cash_out > 0 ? fc(cr.cash_out) : '—'}</td>
+                                                    <td className="cb-td-cr cb-num cb-bank-out">{cr.bank_out > 0 ? fc(cr.bank_out) : '—'}</td>
+                                                </>
+                                            ) : (
+                                                <td colSpan="4" className="cb-td-cr cb-empty" />
+                                            )}
+                                        </tr>
+                                    );
+                                });
+                            })()}
                         </tbody>
+                        {bankData.length > 0 && cashSummary && (
+                            <tfoot>
+                                <tr className="cb-total-row">
+                                    <td className="cb-td-dr" colSpan="2"><strong>Total Receipts</strong></td>
+                                    <td className="cb-td-dr cb-num"><strong>—</strong></td>
+                                    <td className="cb-td-dr cb-num"><strong>{fc(cashSummary.totalBankIn)}</strong></td>
+                                    <td className="cb-td-cr" colSpan="2"><strong>Total Payments</strong></td>
+                                    <td className="cb-td-cr cb-num"><strong>—</strong></td>
+                                    <td className="cb-td-cr cb-num"><strong>{fc(cashSummary.totalBankOut)}</strong></td>
+                                </tr>
+                                <tr className="cb-closing-row">
+                                    <td className="cb-td-dr" colSpan="4">
+                                        {/* Blank */}
+                                    </td>
+                                    <td className="cb-td-cr" colSpan="4">
+                                        Closing Bank: <strong className={cashSummary.closingBank < 0 ? 'text-danger' : 'text-success'}>{fc(cashSummary.closingBank)}</strong>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        )}
                     </table>
+                </div>
+
+                {/* Legend */}
+                <div className="cb-legend">
+                    <span><span className="cb-cat-dot" data-cat="inward">🏥</span> Patient Receipt</span>
+                    <span><span className="cb-cat-dot" data-cat="inward-alt">📋</span> Due Collection</span>
+                    <span><span className="cb-cat-dot" data-cat="outward">👨‍⚕️</span> Doctor Payout</span>
+                    <span><span className="cb-cat-dot" data-cat="outward-alt">📦</span> Purchase</span>
+                    <span><span className="cb-cat-dot" data-cat="outward">✏️</span> Manual Entry</span>
+                    <span><span className="cb-cat-dot" data-cat="contra">🔄</span> Contra Entry</span>
                 </div>
             </div>
         );
