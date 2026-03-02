@@ -61,7 +61,7 @@ function Patients() {
             setLoading(true);
             const response = await patientAPI.getAll({
                 page: currentPage,
-                limit: 10,
+                limit: 5,
                 search: searchTerm
             });
             setPatients(response.data.patients || []);

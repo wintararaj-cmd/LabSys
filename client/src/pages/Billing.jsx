@@ -38,6 +38,8 @@ function Billing() {
     });
     const [filterApplied, setFilterApplied] = useState(false); // true when user runs a custom search
     const [invoiceTotal, setInvoiceTotal] = useState(0);
+    const [currentPageMain, setCurrentPageMain] = useState(1);
+    const mainPerPage = 5;
     const [formData, setFormData] = useState({
         patient_id: '',
         doctor_id: '',
@@ -243,6 +245,7 @@ function Billing() {
 
     const handleApplyFilters = () => {
         setFilterApplied(true);
+        setCurrentPageMain(1);
         loadData(filters);
     };
 
@@ -250,6 +253,7 @@ function Billing() {
         const reset = { fromDate: todayStr(), toDate: todayStr(), mobile: '' };
         setFilters(reset);
         setFilterApplied(false);
+        setCurrentPageMain(1);
         loadData(reset);
     };
 
@@ -1308,7 +1312,7 @@ function Billing() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {invoices.map((invoice) => (
+                                {invoices.slice((currentPageMain - 1) * mainPerPage, currentPageMain * mainPerPage).map((invoice) => (
                                     <tr key={invoice.id}>
                                         <td>
                                             <span
@@ -1380,6 +1384,27 @@ function Billing() {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                )}
+                {invoices.length > mainPerPage && (
+                    <div className="pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', padding: '1rem', borderTop: '1px solid #e5e7eb' }}>
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => setCurrentPageMain(prev => Math.max(1, prev - 1))}
+                            disabled={currentPageMain === 1}
+                        >
+                            ← Previous
+                        </button>
+                        <span className="page-info">
+                            Page {currentPageMain} of {Math.ceil(invoices.length / mainPerPage)}
+                        </span>
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => setCurrentPageMain(prev => Math.min(Math.ceil(invoices.length / mainPerPage), prev + 1))}
+                            disabled={currentPageMain === Math.ceil(invoices.length / mainPerPage)}
+                        >
+                            Next →
+                        </button>
                     </div>
                 )}
             </div>
