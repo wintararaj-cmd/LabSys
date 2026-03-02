@@ -796,7 +796,7 @@ function Billing() {
                                         </div>
                                         <button
                                             type="button"
-                                            className="btn-text btn-danger"
+                                            className="btn btn-secondary btn-sm"
                                             onClick={() => setSelectedPatient(null)}
                                         >
                                             Change Patient
@@ -876,7 +876,7 @@ function Billing() {
                                         </div>
                                         <button
                                             type="button"
-                                            className="btn-text btn-danger"
+                                            className="btn btn-secondary btn-sm"
                                             onClick={() => {
                                                 setFormData({ ...formData, doctor_id: '' });
                                                 setFocusedDoctorIndex(-1);
