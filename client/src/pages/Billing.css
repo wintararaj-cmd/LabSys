@@ -488,7 +488,7 @@
 }
 
 .dues-total-badge {
-    background: #dc2626;
+    background: #92400e;
     color: white;
     font-size: 0.75rem;
     font-weight: 700;
@@ -551,7 +551,7 @@
 
 .dues-balance {
     font-weight: 700;
-    color: #dc2626;
+    color: #b45309;
     font-family: monospace;
     font-size: 0.9375rem;
 }
